@@ -96,3 +96,20 @@ HTTP リクエスト中は即時中断できないため、フェーズ境界で
 ## ライセンス
 
 MIT
+# audio_generator (ament_cmake 版)
+
+## 変更点
+- build_type を ament_cmake に変更し、rosidl (action) を正しく生成
+- setup.py / entry_points を使わず CMake + ament_cmake_python で Python をインストール
+- 実行: `ros2 run audio_generator audio_generator_action_server`
+
+## ビルド手順
+```
+cd ~/ros2_ws/src/audio_generator
+# (ファイル更新後)
+cd ~/ros2_ws
+rm -rf build install log
+colcon build --packages-select audio_generator
+. install/setup.bash
+ros2 run audio_generator audio_generator_action_server
+```
