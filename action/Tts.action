@@ -1,0 +1,20 @@
+# Goal
+string text
+int32 speaker_id
+float32 speed
+float32 pitch
+float32 intonation
+float32 volume
+bool play
+bool return_wav
+---
+# Result
+bool success
+string error
+uint8[] wav_data
+---
+# Feedback
+uint8 phase
+string phase_label
+float32 progress
+string message
