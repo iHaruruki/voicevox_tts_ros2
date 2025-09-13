@@ -1,0 +1,15 @@
+[project]
+name = "audio_generator"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pyaudio==0.2.14",
+    "requests>=2.32.5",
+    "simpleaudio>=1.0.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
