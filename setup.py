@@ -29,6 +29,8 @@ setup(
     entry_points={
         'console_scripts': [
             'audio_generator_node = audio_generator.audio_generator_node:main',
+            'tts_action_server = audio_generator.tts_action_server:main',
+            'tts_action_client = audio_generator.tts_action_client:main',
         ],
     },
 )
