@@ -60,29 +60,42 @@ $ source install/setup.bash
 ---
 
 ## How to Use
-起動方法が`Topic`を使用した方法と`Action`を使用した方法の2つがある
+起動方法が[Topic](#1-topicを使用した起動)を使用した方法と[Action](#2-actionを使用した起動)を使用した方法の2つがある
 
-## 1. Topicを使用した起動
+### 1. Topicを使用した起動
 ```bash
 ros2 launch audio_generator audio_generator_launch.py
 ```
-### テキスト送信例
+#### テキスト送信例
 ```bash
 ros2 topic pub /tts_text std_msgs/String "data: 'こんにちは、テストです。'"
 ```
-### 動的パラメータ変更例
+#### 動的パラメータ変更例
 ```bash
 ros2 param set /audio_generator_node speaker_id 1
 ros2 param set /audio_generator_node speed 1.2
 ros2 param set /audio_generator_node playback false
 ```
+**パラメータ一覧**
+| パラメータ | 型 | 既定値 | 説明 |
+|------------|----|--------|------|
+| engine_url | string | http://127.0.0.1:50021 | VOICEVOX エンジン URL |
+| speaker_id | int | 3 | 話者 ID |
+| speed | double | 1.0 | speedScale |
+| pitch | double | 0.0 | pitchScale |
+| intonation | double | 1.0 | intonationScale |
+| volume | double | 1.0 | volumeScale |
+| enable_interrogative_upspeak | bool | true | 疑問形語尾上げ |
+| enable_katakana_english | bool | true | 英単語カタカナ化 |
+| playback | bool | true | 自動再生有無 |
+| output_directory | string | /tmp/audio_generator | WAV 保存先 |
 
-## 2. Actionを使用した起動
-### インタフェース確認
+### 2. Actionを使用した起動
+#### インタフェース確認
 ```bash
 ros2 interface show audio_generator_interfaces/action/SpeakText
 ```
-Return
+Display
 ```shell
 # Goal
 string text
@@ -109,7 +122,7 @@ int32 remaining_queue
 string excerpt
 ```
 
-### サーバ起動
+#### サーバ起動
 ```bash
 ros2 run audio_generator tts_action_server
 ```
@@ -126,7 +139,7 @@ ros2 run audio_generator tts_action_server --ros-args \
   -p output_directory:=/tmp/audio_generator
 ```
 
-### ゴール送信 (CLI)
+#### ゴール送信 (CLI)
 ```bash
 ros2 action send_goal --feedback /speak_text \
   audio_generator_interfaces/action/SpeakText \
@@ -150,73 +163,68 @@ Result:
   elapsed_ms: 1234
 ```
 
-### キャッシュ挙動
+#### キャッシュ挙動
 同一パラメータ + テキストで 2 回送ると 2 回目 `from_cache: True` になる:
 ```bash
 ros2 action send_goal /speak_text audio_generator_interfaces/action/SpeakText \
 "{text: 'キャッシュテスト', speaker_id: -1, playback: false, speed: 0.0, pitch: 0.0, intonation: 0.0, volume: 0.0, allow_cache: true}"
 ```
+#### 動的パラメータ変更例
+```bash
+ros2 param set /audio_generator_node speaker_id 1
+ros2 param set /audio_generator_node speed 1.2
+ros2 param set /audio_generator_node playback false
+```
+**パラメータ一覧**
+| パラメータ | 型 | 既定値 | 説明 |
+|------------|----|--------|------|
+| engine_url | string | http://127.0.0.1:50021 | VOICEVOX エンジン URL |
+| speaker_id | int | 3 | 既定話者 (ゴールで -1 指定時に使用) |
+| speed | double | 1.0 | 既定 speedScale |
+| pitch | double | 0.0 | 既定 pitchScale |
+| intonation | double | 1.0 | 既定 intonationScale |
+| volume | double | 1.0 | 既定 volumeScale |
+| enable_interrogative_upspeak | bool | true | 疑問形語尾上げ |
+| enable_katakana_english | bool | true | 英単語カタカナ化 |
+| playback | bool | true | ゴール未指定なら使用 |
+| save_wav | bool | true | false で保存抑止 (再生のみ) |
+| output_directory | string | /tmp/audio_generator | WAV 保存先 |
 
-### キャンセル (簡易)
-現在 CLI に直接 goal ID を指定する簡易コマンドは無いため、キャンセルを試したい場合は Python クライアントスクリプトを利用するか、拡張実装を追加します.
----
+### Action ゴール (SpeakText.Goal)
 
-## Action ゴール フィールド意味
+| フィールド | 型 | 特殊値 / 既定解釈 | 説明 |
+|-----------|----|-------------------|------|
+| text | string | 空→拒否 | 合成対象文字列 |
+| speaker_id | int32 | -1→サーバ既定 | 0 以上で強制上書き |
+| playback | bool | なし | 合成後再生するか |
+| speed | float32 | 0.0→サーバ既定 | >0 で上書き |
+| pitch | float32 | 0.0→既定 | !=0.0 で上書き |
+| intonation | float32 | 0.0→既定 | !=0.0 で上書き |
+| volume | float32 | 0.0→既定 | !=0.0 で上書き |
+| allow_cache | bool | false→キャッシュ不使用 | true でキャッシュ利用/保存 |
 
-| フィールド | 型 | 説明 | 特殊値扱い |
-|-----------|----|------|-----------|
-| text | string | 合成対象テキスト | 空は拒否 |
-| speaker_id | int32 | 話者 ID | -1 でサーバ既定値 |
-| playback | bool | 再生するか | false でファイル保存のみ |
-| speed | float32 | 速度 (speedScale) | 0.0 ⇒ サーバ既定値を使用 |
-| pitch | float32 | ピッチ (pitchScale) | 0.0 ⇒ 既定値 |
-| intonation | float32 | 抑揚 (intonationScale) | 0.0 ⇒ 既定値 |
-| volume | float32 | 音量 (volumeScale) | 0.0 ⇒ 既定値 |
-| allow_cache | bool | キャッシュ使用可否 | false で常に再合成 |
-
-### Feedback
+### Action Feedback
 
 | フィールド | 説明 |
 |-----------|------|
 | state | synthesizing / playing / finalizing / done |
-| progress | 0.0〜1.0 の概算進捗 |
-| remaining_queue | 将来の並列キュー用（現状 0 固定） |
-| excerpt | 冒頭抜粋 (最大 40 文字 + 省略) |
+| progress | 0.0〜1.0 概算 |
+| remaining_queue | 将来拡張用 (現状 0) |
+| excerpt | テキスト冒頭抜粋 (最大 40 文字) |
 
-### Result
+### Action Result
 
 | フィールド | 説明 |
 |-----------|------|
 | success | 成功フラグ |
 | error_message | エラー時メッセージ |
-| saved_path | 保存 WAV (save_wav=true のとき) |
+| saved_path | 保存ファイル（`save_wav=true`） |
 | from_cache | キャッシュヒットか |
-| elapsed_ms | 処理時間 (ms) |
+| elapsed_ms | 経過ミリ秒 |
 | used_speaker_id | 実際に用いた話者 ID |
-
 ---
 
-## ノード共通パラメータ
-
-| 名前 | 型 | 説明 | 既定値 |
-|------|----|------|--------|
-| engine_url | string | VOICEVOX エンジン URL | http://127.0.0.1:50021 |
-| speaker_id | int | 話者 ID | 3 |
-| speed | double | speedScale | 1.0 |
-| pitch | double | pitchScale | 0.0 |
-| intonation | double | intonationScale | 1.0 |
-| volume | double | volumeScale | 1.0 |
-| enable_interrogative_upspeak | bool | 疑問形語尾上げ | true |
-| enable_katakana_english | bool | 英単語カタカナ化 | true |
-| playback | bool | 自動再生 | true |
-| save_wav (Action ノード) | bool | WAV 保存有無 | true |
-| output_directory | string | WAV 保存先 | /tmp/audio_generator |
-
-Action ゴールで 0.0（または -1 等）を渡すフィールドはサーバ既定値が使用されます。
-
----
-
-## Python 簡易 Action クライアント例
+### Python 簡易 Action クライアント例
 [tts_action_client.py](/audio_generator/tts_action_client.py)
 ```
 ros2_ws/
@@ -247,18 +255,18 @@ ros2 run audio_generator tts_action_client
 <!-- ## Quick Start
 
 ```bash
-# 1) VOICEVOX 起動
-docker run -d -p 50021:50021 voicevox/voicevox_engine:cpu-ubuntu20.04-latest
+# 1. VOICEVOX 起動
 
-# 2) ビルド
+
+# 2. ビルド & セットアップ
 cd ~/ros2_ws
 colcon build --symlink-install
 source install/setup.bash
 
-# 3) Action サーバ起動
+# 3. Action サーバ起動
 ros2 run audio_generator tts_action_server
 
-# 4) ゴール送信 (別ターミナル)
+# 4. 別ターミナルでゴール送信
 source ~/ros2_ws/install/setup.bash
 ros2 action send_goal --feedback /speak_text audio_generator_interfaces/action/SpeakText \
 "{text: 'テスト', speaker_id: -1, playback: true, speed: 0.0, pitch: 0.0, intonation: 0.0, volume: 0.0, allow_cache: true}"
