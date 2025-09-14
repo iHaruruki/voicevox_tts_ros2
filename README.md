@@ -6,7 +6,6 @@ ROS 2 (Humble 以降想定) で VOICEVOX エンジンを用いたテキスト音
 1. Topic: 文字列トピック (`/tts_text`) を購読して合成・保存・(任意で) 再生するノード `audio_generator_node`  
 2. Action: Action インターフェース (`/speak_text`) によるゴール駆動型の TTS 要求 (`tts_action_server` ノード)
 Action 版ではフィードバック (進捗 / 状態 / 抜粋) やキャッシュ利用有無、キャンセル処理などが可能です。
-
 ---
 
 ## Main Features
@@ -35,7 +34,7 @@ ros2_ws/
 
 | 種別 | 内容 |
 |------|------|
-| ROS 2 | Humble (Foxy 以降でも概ね動作する想定) |
+| ROS 2 | Humble |
 | 音声エンジン | VOICEVOX エンジン (HTTP API) |
 | Python ランタイム | 3.10+ 推奨 |
 | Python ライブラリ | `requests`, `simpleaudio`(任意), ほか標準ライブラリ |
@@ -58,8 +57,9 @@ $ colcon build --symlink-install --packages-select audio_generator_interfaces
 $ colcon build --symlink-install --packages-select audio_generator
 $ source install/setup.bash
 ```
-
 ---
+
+## How to Use
 起動方法が`Topic`を使用した方法と`Action`を使用した方法の2つがある
 
 ## 1. Topicを使用した起動
@@ -78,10 +78,35 @@ ros2 param set /audio_generator_node playback false
 ```
 
 ## 2. Actionを使用した起動
-
 ### インタフェース確認
 ```bash
 ros2 interface show audio_generator_interfaces/action/SpeakText
+```
+Return
+```shell
+# Goal
+string text
+int32 speaker_id
+bool playback
+float32 speed
+float32 pitch
+float32 intonation
+float32 volume
+bool allow_cache
+---
+# Result
+bool success
+string error_message
+string saved_path
+bool from_cache
+int32 elapsed_ms
+int32 used_speaker_id
+---
+# Feedback
+string state
+float32 progress
+int32 remaining_queue
+string excerpt
 ```
 
 ### サーバ起動
@@ -94,15 +119,14 @@ ros2 run audio_generator tts_action_server
 ros2 run audio_generator tts_action_server --ros-args \
   -p engine_url:=http://127.0.0.1:50021 \
   -p speaker_id:=3 \
-  -p speed:=1.05 \
+  -p speed:=0.85 \
   -p intonation:=1.1 \
   -p playback:=true \
-  -p save_wav:=true \
+  -p save_wav:=false \
   -p output_directory:=/tmp/audio_generator
 ```
 
 ### ゴール送信 (CLI)
-
 ```bash
 ros2 action send_goal --feedback /speak_text \
   audio_generator_interfaces/action/SpeakText \
@@ -127,7 +151,6 @@ Result:
 ```
 
 ### キャッシュ挙動
-
 同一パラメータ + テキストで 2 回送ると 2 回目 `from_cache: True` になる:
 ```bash
 ros2 action send_goal /speak_text audio_generator_interfaces/action/SpeakText \
@@ -135,9 +158,7 @@ ros2 action send_goal /speak_text audio_generator_interfaces/action/SpeakText \
 ```
 
 ### キャンセル (簡易)
-
-現在 CLI に直接 goal ID を指定する簡易コマンドは無いため、キャンセルを試したい場合は Python クライアントスクリプトを利用するか、拡張実装を追加します（サンプルは後述）。
-
+現在 CLI に直接 goal ID を指定する簡易コマンドは無いため、キャンセルを試したい場合は Python クライアントスクリプトを利用するか、拡張実装を追加します.
 ---
 
 ## Action ゴール フィールド意味
@@ -175,7 +196,7 @@ ros2 action send_goal /speak_text audio_generator_interfaces/action/SpeakText \
 
 ---
 
-## ノード共通パラメータ (サーバ既定)
+## ノード共通パラメータ
 
 | 名前 | 型 | 説明 | 既定値 |
 |------|----|------|--------|
@@ -195,65 +216,19 @@ Action ゴールで 0.0（または -1 等）を渡すフィールドはサー�
 
 ---
 
-## Python 簡易 Action クライアント例 (任意)
-
-`audio_generator` パッケージ内に次のファイルを追加してエントリポイント化すると CLI 実行できます。
-
-```python
-# tts_action_client.py (例)
-import rclpy
-from rclpy.node import Node
-from rclpy.action import ActionClient
-from audio_generator_interfaces.action import SpeakText
-
-class TTSClient(Node):
-    def __init__(self):
-        super().__init__('tts_action_client')
-        self.cli = ActionClient(self, SpeakText, 'speak_text')
-
-    def send(self, text: str):
-        if not self.cli.wait_for_server(timeout_sec=5):
-            self.get_logger().error("Action server not available.")
-            return
-        goal = SpeakText.Goal()
-        goal.text = text
-        goal.speaker_id = -1
-        goal.playback = True
-        goal.speed = 0.0
-        goal.pitch = 0.0
-        goal.intonation = 0.0
-        goal.volume = 0.0
-        goal.allow_cache = True
-        fut = self.cli.send_goal_async(goal, feedback_callback=self.fb)
-        fut.add_done_callback(self.accepted)
-
-    def fb(self, fb_msg):
-        f = fb_msg.feedback
-        self.get_logger().info(f"[FB] {f.state} {f.progress:.2f} '{f.excerpt}'")
-
-    def accepted(self, fut):
-        gh = fut.result()
-        if not gh.accepted:
-            self.get_logger().warn("Goal rejected.")
-            rclpy.shutdown(); return
-        self.get_logger().info("Goal accepted.")
-        gh.get_result_async().add_done_callback(self.done)
-
-    def done(self, fut):
-        res = fut.result().result
-        self.get_logger().info(f"Result success={res.success} cache={res.from_cache} path={res.saved_path}")
-        rclpy.shutdown()
-
-def main(args=None):
-    rclpy.init(args=args)
-    c = TTSClient()
-    c.send("アクション クライアント テストです。")
-    rclpy.spin(c)
-
-if __name__ == '__main__':
-    main()
+## Python 簡易 Action クライアント例
+[tts_action_client.py](/audio_generator/tts_action_client.py)
 ```
-
+ros2_ws/
+  src/
+    audio_generator/
+      audio_generator/
+        tts_action_client.py
+```
+Node about `tts_action_client.py`
+```shell
+ros2 run audio_generator tts_action_client
+```
 ---
 
 ## トラブルシュート
