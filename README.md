@@ -33,8 +33,8 @@ ros2_ws/
     audio_generator_interfaces/   ← Action インタフェース (別パッケージ)
 ```
 > [!IMPORTANT]
-> 別途パッケージのcloneが必要です.[setup](#setup)を参照<br>
-> [audio_generator_interfaces](https://github.com/iHaruruki/audio_generator_interfaces.git)
+> 別途パッケージ([audio_generator_interfaces](https://github.com/iHaruruki/audio_generator_interfaces.git))のcloneが必要です.<br>
+> [setup](#setup)を参照
 ---
 
 ## Dependencies
