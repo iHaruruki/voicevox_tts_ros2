@@ -10,10 +10,9 @@ ROS 2 (Humble 以降想定) で VOICEVOX エンジンを用いたテキスト音
 ---
 > [!NOTE]
 > 本プログラムは [VOICEVOX](https://voicevox.hiroshiba.jp/) のエンジンを利用して音声合成を行います.    
-> VOICEVOX エンジンは MIT ライセンスで提供されています.ソースコード: [voicevox_engine](https://github.com/VOICEVOX/voicevox_engine.git)<br>
 > 生成される音声（例: 四国めたん / ずんだもん 等）を利用・公開する際は、各キャラクターの利用規約・ガイドラインに従ってください.<br>
 > VOICEVOX 音声モデル 利用規約: [VOICEVOX ソフトウェア利用規約](https://voicevox.hiroshiba.jp/term/) <br>
-> Default設定ではずんだもんを利用（VOICEVOX:ずんだもん）
+> デフォルト設定ではずんだもんを利用（VOICEVOX:ずんだもん）
 
 ## Main Features
 - VOICEVOX エンジン HTTP API を用いた音声合成
@@ -76,7 +75,7 @@ $ source install/setup.bash
 ---
 
 ## How to Use
-起動方法が[Topic](#1-topicを使用した起動)を使用した方法と[Action](#2-actionを使用した起動)を使用した方法の2つがある
+起動方法が[Topic](#1-topicを使用した起動)を使用した方法と[Action](#2-actionを使用した起動)を使用した方法の2つがある.
 
 ### 1. Topicを使用した起動
 ```bash
