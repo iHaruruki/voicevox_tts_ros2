@@ -84,7 +84,7 @@ ros2 topic pub /tts_text std_msgs/String "data: 'こんにちは、テストで�
 | パラメータ | 型 | 既定値 | 説明 |
 |------------|----|--------|------|
 | engine_url | string | http://127.0.0.1:50021 | VOICEVOX エンジン URL |
-| speaker_id | int | 3 | 話者 ID |
+| speaker_id | int | 3 | 話者 ID ([詳細](https://github.com/VOICEVOX/voicevox_vvm/blob/main/README.md))|
 | speed | double | 1.0 | speedScale |
 | pitch | double | 0.0 | pitchScale |
 | intonation | double | 1.0 | intonationScale |
@@ -186,7 +186,7 @@ ros2 action send_goal /speak_text audio_generator_interfaces/action/SpeakText \
 | パラメータ | 型 | 既定値 | 説明 |
 |------------|----|--------|------|
 | engine_url | string | http://127.0.0.1:50021 | VOICEVOX エンジン URL |
-| speaker_id | int | 3 | 既定話者 (ゴールで -1 指定時に使用) |
+| speaker_id | int | 3 | 既定話者 (ゴールで -1 指定時に使用) ([詳細](https://github.com/VOICEVOX/voicevox_vvm/blob/main/README.md))|
 | speed | double | 1.0 | 既定 speedScale |
 | pitch | double | 0.0 | 既定 pitchScale |
 | intonation | double | 1.0 | 既定 intonationScale |
