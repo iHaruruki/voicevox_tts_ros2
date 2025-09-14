@@ -1,0 +1,23 @@
+# Goal
+string text
+int32 speaker_id
+bool playback
+float32 speed
+float32 pitch
+float32 intonation
+float32 volume
+bool allow_cache
+---
+# Result
+bool success
+string error_message
+string saved_path
+bool from_cache
+int32 elapsed_ms
+int32 used_speaker_id
+---
+# Feedback
+string state
+float32 progress
+int32 remaining_queue
+string excerpt

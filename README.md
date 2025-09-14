@@ -33,6 +33,13 @@ ros2 launch audio_generator audio_generator_launch.py
 ros2 topic pub /tts_text std_msgs/String "data: 'こんにちは、テストです。'"
 ```
 
+### Action Usage
+
+```bash
+ros2 run audio_generator tts_action_server
+ros2 action send_goal --feedback /speak_text audio_generator_interfaces/action/SpeakText '{text: "テスト", speaker_id: -1, playback: true, speed: 0.0, pitch: 0.0, intonation: 0.0, volume: 0.0, allow_cache: true}'
+```
+
 ## 動的パラメータ変更例
 
 ```bash
