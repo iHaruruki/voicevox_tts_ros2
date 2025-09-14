@@ -112,7 +112,7 @@ ros2 param set /audio_generator_node playback false
 ros2 interface show audio_generator_interfaces/action/SpeakText
 ```
 Display
-```shell
+```bash
 # Goal
 string text
 int32 speaker_id
