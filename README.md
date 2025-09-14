@@ -6,7 +6,7 @@ ROS 2 (Humble 以降想定) で VOICEVOX エンジンを用いたテキスト音
 1. [Topic](#1-topicを使用した起動): 文字列トピック (`/tts_text`) を購読して合成・保存・(任意で) 再生するノード `audio_generator_node`  
 2. [Action](#2-actionを使用した起動): Action インターフェース (`/speak_text`) によるゴール駆動型の TTS 要求 (`tts_action_server` ノード)
 > [!TIP]
-> Action 版ではフィードバック (進捗 / 状態 / 抜粋) やキャッシュ利用有無、キャンセル処理などが可能です。
+> Action 版ではフィードバック (進捗 / 状態 / 抜粋) やキャッシュ利用有無、キャンセル処理などが可能です.
 ---
 
 ## Main Features
@@ -19,7 +19,7 @@ ROS 2 (Humble 以降想定) で VOICEVOX エンジンを用いたテキスト音
 - (Action) キャンセル要求対応（再生中 / 合成後）
 ---
 
-## パッケージ構成
+## Package Configuration
 ```
 ros2_ws/
   src/
@@ -27,11 +27,11 @@ ros2_ws/
     audio_generator_interfaces/   ← Action インタフェース (別パッケージ)
 ```
 > [!IMPORTANT]
-> 別途パッケージのcloneが必要です
+> 別途パッケージのcloneが必要です.[setup](#setup)を参照<br>
 > [audio_generator_interfaces](https://github.com/iHaruruki/audio_generator_interfaces.git)
 ---
 
-## 依存・前提
+## Dependencies
 
 | 種別 | 内容 |
 |------|------|
@@ -40,18 +40,27 @@ ros2_ws/
 | Python ランタイム | 3.10+ 推奨 |
 | Python ライブラリ | `requests`, `simpleaudio`(任意), ほか標準ライブラリ |
 | 外部プレイヤ (フォールバック) | `ffplay` / `paplay` / `aplay` のいずれか |
+---
 
-VOICEVOXの設定方法
-[VOICEBOX.md](/audio_generator/VOICEVOX.md)
-
-Python 依存:
+## Setup
+1. Install VOICEVOX
+Please follow link<br>
+[VOICEBOX.md](https://github.com/iHaruruki/audio_generator/blob/feature/VOICEVOX.md)
+2. Python 依存:
 ```bash
 pip3 install requests simpleaudio
 ```
----
-
-## Build
-
+3. Clone this package
+```bash
+cd ~/ros2_ws/src
+git clone https://github.com/iHaruruki/audio_generator.git
+```
+4. Clone `audio_generator_interfaces` package
+```bash
+cd ~/ros2_ws/src
+git clone https://github.com/iHaruruki/audio_generator_interfaces.git
+```
+5. Build
 ```bash
 $ cd ~/ros2_ws
 $ colcon build --symlink-install --packages-select audio_generator_interfaces
