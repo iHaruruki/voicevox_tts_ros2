@@ -78,10 +78,15 @@ $ source install/setup.bash
 起動方法が[Topic](#1-topicを使用した起動)を使用した方法と[Action](#2-actionを使用した起動)を使用した方法の2つがある.
 
 ### 1. Topicを使用した起動
+Launch VOICEVOX
+```bash
+./.voicevox/VOICEVOX.AppImage
+```
+Run node
 ```bash
 ros2 launch audio_generator audio_generator_launch.py
 ```
-#### テキスト送信例
+Send text
 ```bash
 ros2 topic pub /tts_text std_msgs/String "data: 'こんにちは、テストです。'"
 ```
@@ -139,6 +144,11 @@ string excerpt
 ```
 
 #### サーバ起動
+Launch VOICEVOX
+```bash
+./.voicevox/VOICEVOX.AppImage
+```
+Run node
 ```bash
 ros2 run audio_generator tts_action_server
 ```
