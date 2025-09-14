@@ -70,13 +70,7 @@ ros2 launch audio_generator audio_generator_launch.py
 ```bash
 ros2 topic pub /tts_text std_msgs/String "data: 'こんにちは、テストです。'"
 ```
-#### 動的パラメータ変更例
-```bash
-ros2 param set /audio_generator_node speaker_id 1
-ros2 param set /audio_generator_node speed 1.2
-ros2 param set /audio_generator_node playback false
-```
-**パラメータ一覧**
+#### 動的パラメータ
 | パラメータ | 型 | 既定値 | 説明 |
 |------------|----|--------|------|
 | engine_url | string | http://127.0.0.1:50021 | VOICEVOX エンジン URL |
@@ -89,6 +83,13 @@ ros2 param set /audio_generator_node playback false
 | enable_katakana_english | bool | true | 英単語カタカナ化 |
 | playback | bool | true | 自動再生有無 |
 | output_directory | string | /tmp/audio_generator | WAV 保存先 |
+
+**パラメータ変更例**
+```bash
+ros2 param set /audio_generator_node speaker_id 1
+ros2 param set /audio_generator_node speed 1.2
+ros2 param set /audio_generator_node playback false
+```
 
 ### 2. Actionを使用した起動
 #### インタフェース確認
@@ -169,13 +170,9 @@ Result:
 ros2 action send_goal /speak_text audio_generator_interfaces/action/SpeakText \
 "{text: 'キャッシュテスト', speaker_id: -1, playback: false, speed: 0.0, pitch: 0.0, intonation: 0.0, volume: 0.0, allow_cache: true}"
 ```
-#### 動的パラメータ変更例
-```bash
-ros2 param set /audio_generator_node speaker_id 1
-ros2 param set /audio_generator_node speed 1.2
-ros2 param set /audio_generator_node playback false
-```
-**パラメータ一覧**
+#### 動的パラメータ
+
+**Action サーバ (`tts_action_server`)**
 | パラメータ | 型 | 既定値 | 説明 |
 |------------|----|--------|------|
 | engine_url | string | http://127.0.0.1:50021 | VOICEVOX エンジン URL |
@@ -190,8 +187,7 @@ ros2 param set /audio_generator_node playback false
 | save_wav | bool | true | false で保存抑止 (再生のみ) |
 | output_directory | string | /tmp/audio_generator | WAV 保存先 |
 
-### Action ゴール (SpeakText.Goal)
-
+**Action ゴール (SpeakText.Goal)**
 | フィールド | 型 | 特殊値 / 既定解釈 | 説明 |
 |-----------|----|-------------------|------|
 | text | string | 空→拒否 | 合成対象文字列 |
@@ -203,8 +199,7 @@ ros2 param set /audio_generator_node playback false
 | volume | float32 | 0.0→既定 | !=0.0 で上書き |
 | allow_cache | bool | false→キャッシュ不使用 | true でキャッシュ利用/保存 |
 
-### Action Feedback
-
+**Action Feedback**
 | フィールド | 説明 |
 |-----------|------|
 | state | synthesizing / playing / finalizing / done |
@@ -212,8 +207,7 @@ ros2 param set /audio_generator_node playback false
 | remaining_queue | 将来拡張用 (現状 0) |
 | excerpt | テキスト冒頭抜粋 (最大 40 文字) |
 
-### Action Result
-
+**Action Result**
 | フィールド | 説明 |
 |-----------|------|
 | success | 成功フラグ |
