@@ -1,25 +1,20 @@
+import os
+from glob import glob
 from setuptools import setup, find_packages
 from pathlib import Path
 
 package_name = 'audio_generator'
 
-# launch フォルダ内の *.py をすべてデータファイルとしてインストール
-launch_dir = Path(__file__).parent / 'launch'
-launch_files = []
-if launch_dir.exists():
-    launch_files = [str(p) for p in launch_dir.glob('*.py')]
-
-data_files = [
-    ('share/ament_index/resource_index/packages', [f'resource/{package_name}']),
-    ('share/' + package_name, ['package.xml', 'README.md']),
-    ('share/' + package_name + '/launch', launch_files),
-]
-
 setup(
     name=package_name,
     version='0.0.1',
     packages=find_packages(exclude=[]),
-    data_files=data_files,
+    data_files=[
+        ('share/ament_index/resource_index/packages',
+            ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name), glob('launch/*launch.[pxy][yma]*')),
+    ],
     install_requires=[
         'setuptools',
         'requests',
