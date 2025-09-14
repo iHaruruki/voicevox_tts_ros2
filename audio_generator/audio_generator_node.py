@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, ByteMultiArray
+from std_msgs.msg import String, UInt8MultiArray  # ByteMultiArray -> UInt8MultiArray
 from rcl_interfaces.msg import SetParametersResult
 
 import requests
@@ -34,7 +34,6 @@ class AudioGeneratorNode(Node):
         self.declare_parameter('output_directory', '/tmp/audio_generator')
         self.declare_parameter('save_wav', False)
         self.declare_parameter('publish_audio_bytes', False)
-        # Streaming (sentence) mode:
         self.declare_parameter('stream_sentence_mode', True)
         self.declare_parameter('sentence_separators', '。！？!?\\n')
 
@@ -46,13 +45,11 @@ class AudioGeneratorNode(Node):
             10
         )
 
-        # Publisher for raw wav bytes (each segment if streaming)
-        self.audio_pub = self.create_publisher(ByteMultiArray, '/tts_audio', 10)
+        # Publisher: /tts_audio (各 WAV セグメントの生バイト列)
+        self.audio_pub = self.create_publisher(UInt8MultiArray, '/tts_audio', 10)
 
-        # Lock for single synthesis (non-stream mode)
+        # Locks / state
         self._synthesis_lock = threading.Lock()
-
-        # Streaming state
         self._stream_lock = threading.Lock()
         self._stream_active = False
         self._stream_queue: Queue[str] = Queue()
@@ -64,11 +61,10 @@ class AudioGeneratorNode(Node):
 
         self.add_on_set_parameters_callback(self.on_param_change)
 
-    # ---------------- Parameter Handling ----------------
+    # --------------- Parameter callback ---------------
     def on_param_change(self, params):
         for p in params:
-            name = p.name
-            val = p.value
+            name, val = p.name, p.value
             if name == 'speed' and (val <= 0 or val > 5.0):
                 return SetParametersResult(successful=False, reason="speed must be in (0, 5.0]")
             if name == 'volume' and (val <= 0 or val > 5.0):
@@ -87,32 +83,22 @@ class AudioGeneratorNode(Node):
             self.get_logger().info(f"Parameter changed: {name} -> {val}")
         return SetParametersResult(successful=True)
 
-    # ---------------- Callback Entry ----------------
+    # --------------- Topic callback ---------------
     def text_callback(self, msg: String):
         text = msg.data.strip()
         if not text:
             self.get_logger().warn("空文字列を受信したため無視します。")
             return
-
         if self.get_parameter('stream_sentence_mode').value:
             self._enqueue_stream_text(text)
         else:
-            # Legacy single synthesis
             threading.Thread(target=self._handle_tts_single, args=(text,), daemon=True).start()
 
-    # ---------------- Sentence Streaming ----------------
+    # --------------- Streaming sentence mode ---------------
     def _enqueue_stream_text(self, full_text: str):
-        """
-        受け取った長文を文単位に分割し、ストリーム再生キューへ投入。
-        既にストリーム実行中なら新しいテキストは末尾に追記。
-        """
-        sentences = self._split_sentences(
-            full_text,
-            self.get_parameter('sentence_separators').value
-        )
+        sentences = self._split_sentences(full_text, self.get_parameter('sentence_separators').value)
         if not sentences:
             return
-
         with self._stream_lock:
             for s in sentences:
                 self._stream_queue.put(s)
@@ -125,12 +111,8 @@ class AudioGeneratorNode(Node):
                 self.get_logger().info(f"ストリームに {len(sentences)} 文を追加 (残キュー: {self._stream_queue.qsize()})")
 
     def _split_sentences(self, text: str, seps: str):
-        """
-        句読点・改行を境界として文分割。連続区切りはまとめて 1 境界扱い。
-        """
         if not text:
             return []
-        # 正規表現: 区切り文字を保持して結合
         pattern = f"([{re.escape(seps)}])"
         parts = re.split(pattern, text)
         merged = []
@@ -146,22 +128,16 @@ class AudioGeneratorNode(Node):
                 buf += p
         if buf.strip():
             merged.append(buf.strip())
-        # 空要素除外
         return [m for m in merged if m]
 
     def _stream_worker(self):
-        """
-        文単位でキューを取り出し順次合成・再生。
-        """
         self.get_logger().info("ストリームワーカー起動")
         try:
             while not self._cancel_stream:
                 try:
                     sentence = self._stream_queue.get(timeout=0.3)
                 except Empty:
-                    # キュー空かつキャンセルでなければ待機を続ける
                     if self._stream_queue.empty():
-                        # 一定時間空なら終了
                         if not self._wait_for_more(1.0):
                             self.get_logger().info("ストリーム完了（追加文なし）")
                             break
@@ -173,16 +149,12 @@ class AudioGeneratorNode(Node):
                 short = sentence[:30] + ('...' if len(sentence) > 30 else '')
                 self.get_logger().info(f"[STREAM] 合成: '{short}'")
                 try:
-                    wav_bytes, saved_path = self._tts_bytes(
-                        text=sentence,
-                        **params
-                    )
+                    wav_bytes, saved_path = self._tts_bytes(sentence, **params)
                     if saved_path:
                         self.get_logger().info(f"[STREAM] 保存: {saved_path.name}")
-                    # Publish bytes (segment)
                     if params['publish_audio_bytes']:
-                        msg = ByteMultiArray()
-                        msg.data = list(wav_bytes)
+                        msg = UInt8MultiArray()
+                        msg.data = list(wav_bytes)  # uint8[] に int リストをそのまま
                         self.audio_pub.publish(msg)
                         self.get_logger().info(f"[STREAM] publish {len(wav_bytes)} bytes")
                     if params['playback']:
@@ -191,16 +163,12 @@ class AudioGeneratorNode(Node):
                     self.get_logger().error(f"[STREAM] 合成失敗: {e}")
                 finally:
                     self._stream_queue.task_done()
-
         finally:
             with self._stream_lock:
                 self._stream_active = False
             self.get_logger().info("ストリームワーカー終了")
 
     def _wait_for_more(self, seconds: float):
-        """
-        指定秒待ってキューが追加されたら True。追加されなければ False。
-        """
         import time
         end = time.time() + seconds
         while time.time() < end:
@@ -210,13 +178,8 @@ class AudioGeneratorNode(Node):
         return False
 
     def cancel_stream(self):
-        """
-        将来: サービスやパラメータ変更からキャンセルできるようにするためのメソッド。
-        （現状未公開。必要ならサービス追加。）
-        """
         with self._stream_lock:
             self._cancel_stream = True
-        # キューを即時空に
         while not self._stream_queue.empty():
             try:
                 self._stream_queue.get_nowait()
@@ -225,7 +188,7 @@ class AudioGeneratorNode(Node):
                 break
         self.get_logger().info("ストリームキャンセル指示")
 
-    # ---------------- Single (non-stream) Legacy Path ----------------
+    # --------------- Single mode ---------------
     def _handle_tts_single(self, text: str):
         if not self._synthesis_lock.acquire(blocking=False):
             self.get_logger().warn("前の音声合成中のためスキップ: " + text)
@@ -234,23 +197,16 @@ class AudioGeneratorNode(Node):
             params = self._collect_params()
             short = text[:40] + ('...' if len(text) > 40 else '')
             self.get_logger().info(f"合成開始: speaker={params['speaker_id']} text='{short}'")
-
-            wav_bytes, saved_path = self._tts_bytes(
-                text=text,
-                **params
-            )
-
+            wav_bytes, saved_path = self._tts_bytes(text, **params)
             if saved_path:
                 self.get_logger().info(f"合成完了 (保存): {saved_path}")
             else:
                 self.get_logger().info("合成完了 (メモリのみ)")
-
             if params['publish_audio_bytes']:
-                msg = ByteMultiArray()
+                msg = UInt8MultiArray()
                 msg.data = list(wav_bytes)
                 self.audio_pub.publish(msg)
                 self.get_logger().info(f"/tts_audio に {len(wav_bytes)} bytes publish")
-
             if params['playback']:
                 self._play_wav_bytes(wav_bytes)
         except Exception as e:
@@ -258,7 +214,7 @@ class AudioGeneratorNode(Node):
         finally:
             self._synthesis_lock.release()
 
-    # ---------------- Common Helpers ----------------
+    # --------------- Common helpers ---------------
     def _collect_params(self):
         return {
             'engine_url': self.get_parameter('engine_url').value,
@@ -275,19 +231,10 @@ class AudioGeneratorNode(Node):
             'publish_audio_bytes': bool(self.get_parameter('publish_audio_bytes').value),
         }
 
-    def _tts_bytes(self,
-                   text: str,
-                   engine_url: str,
-                   speaker_id: int,
-                   speed: float,
-                   pitch: float,
-                   intonation: float,
-                   volume: float,
-                   enable_interrogative_upspeak: bool,
-                   enable_katakana_english: bool,
-                   output_directory: str,
-                   save_wav: bool,
-                   **kwargs):
+    def _tts_bytes(self, text: str, engine_url: str, speaker_id: int, speed: float,
+                   pitch: float, intonation: float, volume: float,
+                   enable_interrogative_upspeak: bool, enable_katakana_english: bool,
+                   output_directory: str, save_wav: bool, **kwargs):
         query_resp = requests.post(
             f"{engine_url}/audio_query",
             params={
@@ -300,7 +247,6 @@ class AudioGeneratorNode(Node):
         )
         query_resp.raise_for_status()
         query = query_resp.json()
-
         query["speedScale"] = float(speed)
         query["pitchScale"] = float(pitch)
         query["intonationScale"] = float(intonation)
@@ -313,8 +259,8 @@ class AudioGeneratorNode(Node):
             timeout=120
         )
         synth_resp.raise_for_status()
-
         wav_bytes = synth_resp.content
+
         saved_path = None
         if save_wav:
             ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -324,43 +270,36 @@ class AudioGeneratorNode(Node):
         return wav_bytes, saved_path
 
     def _play_wav_bytes(self, wav_bytes: bytes):
-        # simpleaudio memory path
         try:
             import simpleaudio as sa
             with io.BytesIO(wav_bytes) as bio:
                 with wave.open(bio, 'rb') as wf:
-                    audio_data = wf.readframes(wf.getnframes())
+                    frames = wf.readframes(wf.getnframes())
                     sample_width = wf.getsampwidth()
-                    num_channels = wf.getnchannels()
-                    sample_rate = wf.getframerate()
-                play_obj = sa.play_buffer(audio_data, num_channels, sample_width, sample_rate)
-                play_obj.wait_done()
-                self.get_logger().info("再生完了(simpleaudio)")
-                return
+                    channels = wf.getnchannels()
+                    rate = wf.getframerate()
+            play_obj = sa.play_buffer(frames, channels, sample_width, rate)
+            play_obj.wait_done()
+            self.get_logger().info("再生完了(simpleaudio)")
+            return
         except Exception as e:
             self.get_logger().warn(f"simpleaudio再生失敗: {e} -> フォールバック")
 
-        # Fallback (temp file)
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
             tmp.write(wav_bytes)
             tmp.flush()
             path = tmp.name
             if shutil.which("ffplay"):
-                subprocess.run(["ffplay", "-nodisp", "-autoexit", path], check=False)
-                return
+                subprocess.run(["ffplay", "-nodisp", "-autoexit", path], check=False); return
             if shutil.which("paplay"):
-                subprocess.run(["paplay", path], check=False)
-                return
+                subprocess.run(["paplay", path], check=False); return
             if shutil.which("aplay"):
-                subprocess.run(["aplay", path], check=False)
-                return
+                subprocess.run(["aplay", path], check=False); return
             if platform.system() == "Darwin" and shutil.which("afplay"):
-                subprocess.run(["afplay", path], check=False)
-                return
+                subprocess.run(["afplay", path], check=False); return
             if platform.system() == "Windows":
                 ps = f"(New-Object Media.SoundPlayer '{path}').PlaySync()"
-                subprocess.run(["powershell", "-c", ps], check=False)
-                return
+                subprocess.run(["powershell", "-c", ps], check=False); return
             self.get_logger().error("再生手段が見つかりません。")
 
 def main(args=None):
