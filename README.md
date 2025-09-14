@@ -3,38 +3,32 @@
 ROS 2 (Humble 以降想定) で VOICEVOX エンジンを用いたテキスト音声合成 (TTS) を行うパッケージです。  
 以下 2 つの API スタイルを提供します:
 
-1. 既存: 文字列トピック (`/tts_text`) を購読して合成・保存・(任意で) 再生するノード `audio_generator_node`  
-2. 追加 (推奨): Action インターフェース (`/speak_text`) によるゴール駆動型の TTS 要求 (`tts_action_server` ノード)
-
+1. Topic: 文字列トピック (`/tts_text`) を購読して合成・保存・(任意で) 再生するノード `audio_generator_node`  
+2. Action: Action インターフェース (`/speak_text`) によるゴール駆動型の TTS 要求 (`tts_action_server` ノード)
 Action 版ではフィードバック (進捗 / 状態 / 抜粋) やキャッシュ利用有無、キャンセル処理などが可能です。
 
 ---
 
-## 主な機能
-
+## Main Features
 - VOICEVOX エンジン HTTP API を用いた音声合成
 - 再生 (simpleaudio 利用、不可なら ffplay/paplay/aplay 等にフォールバック)
 - WAV 保存 (ファイル名にタイムスタンプ)
 - 動的パラメータ変更
-- （Action）合成状態・進捗フィードバック
-- （Action）キャッシュヒット判定
-- （Action）キャンセル要求対応（再生中 / 合成後）
-- （将来拡張予定）LRU キャッシュ / 文分割ストリーミング etc.
-
+- (Action) 合成状態・進捗フィードバック
+- (Action) キャッシュヒット判定
+- (Action) キャンセル要求対応（再生中 / 合成後）
 ---
 
-## パッケージ構成 (ワークスペース例)
-
+## パッケージ構成
 ```
 ros2_ws/
   src/
     audio_generator/              ← 本パッケージ
     audio_generator_interfaces/   ← Action インタフェース (別パッケージ)
 ```
-
-`audio_generator_interfaces` は `.action` 定義のみを含むインタフェースパッケージです。  
-同一リポジトリで管理しない場合は、別途 clone / 配置してください。
-
+> [!IMPORTANT]
+> 別途パッケージのcloneが必要です
+> [audio_generator_interfaces](https://github.com/iHaruruki/audio_generator_interfaces.git)
 ---
 
 ## 依存・前提
@@ -45,81 +39,52 @@ ros2_ws/
 | 音声エンジン | VOICEVOX エンジン (HTTP API) |
 | Python ランタイム | 3.10+ 推奨 |
 | Python ライブラリ | `requests`, `simpleaudio`(任意), ほか標準ライブラリ |
-| 外部プレイヤ (フォールバック) | `ffplay` / `paplay` / `aplay` / macOS: `afplay` のいずれか |
+| 外部プレイヤ (フォールバック) | `ffplay` / `paplay` / `aplay` のいずれか |
 
-VOICEVOX エンジン起動例 (Docker):
-```bash
-docker run -d --name voicevox_engine -p 50021:50021 voicevox/voicevox_engine:cpu-ubuntu20.04-latest
-curl -s "http://127.0.0.1:50021/speakers" | head
-```
+VOICEVOXの設定方法
+[VOICEBOX.md](/audio_generator/VOICEVOX.md)
 
 Python 依存:
 ```bash
-pip install requests simpleaudio
+pip3 install requests simpleaudio
 ```
-(simpleaudio がインストールできない環境では自動的に外部コマンド再生にフォールバックします)
-
 ---
 
-## ビルド
-
-ワークスペースに 2 パッケージを配置した場合:
+## Build
 
 ```bash
-cd ~/ros2_ws
-colcon build --symlink-install
-source install/setup.bash
-```
-
-個別に順番を意識したい場合 (初回):
-```bash
-colcon build --symlink-install --packages-select audio_generator_interfaces
-colcon build --symlink-install --packages-select audio_generator
-source install/setup.bash
+$ cd ~/ros2_ws
+$ colcon build --symlink-install --packages-select audio_generator_interfaces
+$ colcon build --symlink-install --packages-select audio_generator
+$ source install/setup.bash
 ```
 
 ---
+起動方法が`Topic`を使用した方法と`Action`を使用した方法の2つがある
 
-## 1. トピックベース ノード (従来)
-
-### 起動
-
-Launch ファイルがある場合:
+## 1. Topicを使用した起動
 ```bash
 ros2 launch audio_generator audio_generator_launch.py
 ```
-
-または直接:
-```bash
-ros2 run audio_generator audio_generator_node
-```
-
 ### テキスト送信例
-
 ```bash
 ros2 topic pub /tts_text std_msgs/String "data: 'こんにちは、テストです。'"
 ```
-
 ### 動的パラメータ変更例
-
 ```bash
 ros2 param set /audio_generator_node speaker_id 1
 ros2 param set /audio_generator_node speed 1.2
 ros2 param set /audio_generator_node playback false
 ```
 
----
-
-## 2. Action ベース ノード (推奨)
+## 2. Actionを使用した起動
 
 ### インタフェース確認
-
 ```bash
 ros2 interface show audio_generator_interfaces/action/SpeakText
 ```
 
 ### サーバ起動
-
 ```bash
 ros2 run audio_generator tts_action_server
 ```
@@ -298,31 +263,13 @@ if __name__ == '__main__':
 | `tts_action_server` が見つからない | setup.py の entry_points 未反映 | 再ビルド & `source install/setup.bash` |
 | `ImportError: audio_generator_interfaces` | インタフェース未ビルド / source 忘れ | interfaces パッケージを先にビルド |
 | HTTP 失敗 (connection refused) | VOICEVOX 未起動 / URL 違い | エンジン起動・`engine_url` パラメータ再確認 |
-| 音が鳴らない | simpleaudio 未インストール | `pip install simpleaudio` またはフォールバック確認 |
+| 音が鳴らない | simpleaudio 未インストール | `pip3 install simpleaudio` またはフォールバック確認 |
 | キャンセル遅延 | フォールバック再生 (外部コマンド) 中 | simpleaudio 利用環境に切替 |
 | キャッシュ効かない | パラメータ差分 / allow_cache=false | ゴール送信 JSON を再確認 |
 
 ---
 
-## 将来拡張案 (Issue / PR 歓迎)
-
-- LRU キャッシュ（サイズ制限 / 有効期限）
-- 文単位ストリーミング合成 (feedback を文ごと更新)
-- ゴール並列受付 + 内部 FIFO / 優先度
-- 合成 HTTP リクエスト中断 (キャンセル高速化)
-- メタ情報 (sample_rate / channels / bytes) を Result に追加
-- 旧トピック API → Action ブリッジノード
-- テスト (pytest + ros2 test) / CI ワークフロー
-
----
-
-## ライセンス
-
-MIT (予定。`LICENSE` ファイルを参照 / 未作成の場合は追記してください)
-
----
-
-## クイックスタート要約
+<!-- ## Quick Start
 
 ```bash
 # 1) VOICEVOX 起動
@@ -340,14 +287,4 @@ ros2 run audio_generator tts_action_server
 source ~/ros2_ws/install/setup.bash
 ros2 action send_goal --feedback /speak_text audio_generator_interfaces/action/SpeakText \
 "{text: 'テスト', speaker_id: -1, playback: true, speed: 0.0, pitch: 0.0, intonation: 0.0, volume: 0.0, allow_cache: true}"
-```
-
----
-
-## 貢献
-
-Issue / PR での改善提案歓迎です。拡張したい項目があれば README 末尾の「将来拡張案」から選んでください。
-
----
-
-ご利用ありがとうございます。改善案があればぜひフィードバックをお寄せください。
+``` -->
