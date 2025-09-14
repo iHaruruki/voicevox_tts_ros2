@@ -1,26 +1,20 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>audio_generator</name>
-  <version>1.0.0</version>
-  <description>ROS2 Humble VOICEVOX TTS (memory-only, action-based)</description>
+  <version>0.0.1</version>
+  <description>ROS 2 node that subscribes to a text topic and generates / plays synthesized audio using VOICEVOX.</description>
   <maintainer email="you@example.com">Your Name</maintainer>
   <license>MIT</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <buildtool_depend>ament_python</buildtool_depend>
 
-  <depend>rclpy</depend>
-  <depend>rclpy_action</depend>
-  <depend>builtin_interfaces</depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
 
-  <member_of_group>rosidl_interface_packages</member_of_group>
-  <build_depend>rosidl_default_generators</build_depend>
-  <exec_depend>rosidl_default_runtime</exec_depend>
-
+  <!-- system package names are environment-dependent. Python deps via pip if必要 -->
   <exec_depend>python3-requests</exec_depend>
-  <exec_depend>python3-setuptools</exec_depend>
-
+  <!-- simpleaudio がOSパッケージに無い場合 pip install simpleaudio -->
   <export>
-    <build_type>ament_cmake</build_type>
+    <build_type>ament_python</build_type>
   </export>
 </package>
