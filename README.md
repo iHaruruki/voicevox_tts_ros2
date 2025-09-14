@@ -1,11 +1,12 @@
 # audio_generator
 
-ROS 2 (Humble 以降想定) で VOICEVOX エンジンを用いたテキスト音声合成 (TTS) を行うパッケージです。  
+ROS 2 (Humble 以降想定) で VOICEVOX エンジンを用いたテキスト音声合成 (TTS) を行うパッケージです.
 以下 2 つの API スタイルを提供します:
 
-1. Topic: 文字列トピック (`/tts_text`) を購読して合成・保存・(任意で) 再生するノード `audio_generator_node`  
-2. Action: Action インターフェース (`/speak_text`) によるゴール駆動型の TTS 要求 (`tts_action_server` ノード)
-Action 版ではフィードバック (進捗 / 状態 / 抜粋) やキャッシュ利用有無、キャンセル処理などが可能です。
+1. [Topic](#1-topicを使用した起動): 文字列トピック (`/tts_text`) を購読して合成・保存・(任意で) 再生するノード `audio_generator_node`  
+2. [Action](#2-actionを使用した起動): Action インターフェース (`/speak_text`) によるゴール駆動型の TTS 要求 (`tts_action_server` ノード)
+> [!TIP]
+> Action 版ではフィードバック (進捗 / 状態 / 抜粋) やキャッシュ利用有無、キャンセル処理などが可能です。
 ---
 
 ## Main Features
