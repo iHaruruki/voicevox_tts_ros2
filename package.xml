@@ -11,6 +11,9 @@
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
 
+  <depend>audio_generator_interfaces</depend>
+  <depend>action_msgs</depend>
+
   <!-- system package names are environment-dependent. Python deps via pip if必要 -->
   <exec_depend>python3-requests</exec_depend>
   <!-- simpleaudio がOSパッケージに無い場合 pip install simpleaudio -->
