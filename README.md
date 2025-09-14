@@ -1,115 +1,66 @@
-# audio_generator (v1.0.0 Memory-Only / Action-based)
+# audio_generator
 
-VOICEVOX を利用した ROS 2 Humble 用 TTS アクションサーバ。  
-ディスクへ WAV を保存せずメモリ上で合成・再生し、必要に応じてバイト列を返します。
+`audio_generator_node` は `std_msgs/msg/String` のテキストを購読し、VOICEVOX エンジンで音声合成した WAV を保存・必要に応じて再生します。
 
-## 変更点 (旧バージョンからの移行)
+## 前提
 
-- 旧サービス `Tts.srv` / ノード `audio_generator_node` を廃止
-- アクション `Tts.action` に統合 (進捗・キャンセル可能)
-- フィードバックでフェーズ進捗を通知
-- メモリ再生: `simpleaudio` → `pyaudio` → 無し(警告) の順に試行
-- ファイル永続化は行わない（必要であればクライアント側で `wav_data` を保存）
+- ROS 2 Humble 環境
+- VOICEVOX エンジン (例: `docker run -p 50021:50021 voicevox/voicevox_engine:cpu-ubuntu20.04-latest` など)
+- Python 依存  
+  ```bash
+  pip install requests simpleaudio
+  ```  
+  simpleaudio が不要・インストールできない場合はフォールバック再生を利用します。
 
-## Action: /audio_generator
+## ビルド
 
-Goal:
-| Field        | Type    | Description |
-|--------------|---------|-------------|
-| text         | string  | 合成テキスト |
-| speaker_id   | int32   | 話者ID (負ならパラメータ default_speaker_id) |
-| speed        | float32 | 速度 (>0 で適用, 0以下でデフォルト) |
-| pitch        | float32 | ピッチ (0.0 の場合デフォルト) |
-| intonation   | float32 | 抑揚 (>0 で適用) |
-| volume       | float32 | 音量 (>0 で適用) |
-| play         | bool    | メモリ再生 |
-| return_wav   | bool    | バイト列取得 |
-
-Feedback:
-| Field       | Type    | Note |
-|-------------|---------|------|
-| phase       | uint8   | 0=QUEUED 1=QUERYING 2=SYNTHESIZING 3=PLAYING 4=COMPLETED 5=CANCELED 6=ERROR |
-| phase_label | string  | フェーズ名 |
-| progress    | float32 | 擬似 0.0～1.0 |
-| message     | string  | 補足 |
-
-Result:
-| Field     | Type    | Description |
-|-----------|---------|-------------|
-| success   | bool    | 成功フラグ |
-| error     | string  | エラー内容 |
-| wav_data  | uint8[] | return_wav=true のとき WAV バイト列 |
-
-## インストール
-
-```
-rosdep install --from-paths src --ignore-src -r -y
+```bash
+cd ~/ros2_ws/src
+# 本パッケージを配置
 colcon build --packages-select audio_generator
-. install/setup.bash
-pip install -r install/audio_generator/share/audio_generator/requirements.txt
+source ~/ros2_ws/install/setup.bash
 ```
-
-`pyaudio` は OS によっては追加で `portaudio` ライブラリが必要です。
 
 ## 起動
 
-```
-ros2 launch audio_generator audio_generator_action.launch.py
-```
-
-## クライアント例 (再生のみ)
-
-```
-ros2 run audio_generator tts_action_client_example
+```bash
+ros2 launch audio_generator audio_generator_launch.py
 ```
 
-## Python クライアントで WAV を保存したい場合
+## トピック送信例
 
-`return_wav=true` で受け取った `result.wav_data` をファイルへ:
-
-```python
-with open("out.wav", "wb") as f:
-    f.write(bytes(result.wav_data))
+```bash
+ros2 topic pub /tts_text std_msgs/String "data: 'こんにちは、テストです。'"
 ```
 
-## キャンセル
+## 動的パラメータ変更例
 
-別ターミナルから:
-
-```
-ros2 action list
-ros2 action info /audio_generator
-ros2 action send_goal /audio_generator audio_generator/action/Tts "{text: '長文...', speaker_id: 3, speed: 1.0, pitch: 0.0, intonation: 1.0, volume: 1.0, play: false, return_wav: false}"
-# goal_id を控えた上で:
-ros2 action cancel /audio_generator <goal_id>
+```bash
+ros2 param set /audio_generator_node speaker_id 1
+ros2 param set /audio_generator_node speed 1.2
+ros2 param set /audio_generator_node playback false
 ```
 
-HTTP リクエスト中は即時中断できないため、フェーズ境界でキャンセルが反映されます。
+## パラメータ一覧
 
-## 制約と今後の拡張余地
+| 名前 | 型 | 説明 | 既定値 |
+|------|----|------|--------|
+| engine_url | string | VOICEVOX エンジンURL | http://127.0.0.1:50021 |
+| speaker_id | int | 話者ID | 3 |
+| speed | double | speedScale | 1.0 |
+| pitch | double | pitchScale | 0.0 |
+| intonation | double | intonationScale | 1.0 |
+| volume | double | volumeScale | 1.0 |
+| enable_interrogative_upspeak | bool | 疑問形末上げ | true |
+| enable_katakana_english | bool | 英単語カタカナ化 | true |
+| playback | bool | 自動再生有無 | true |
+| output_directory | string | WAV保存先 | /tmp/audio_generator |
 
-- VOICEVOX API はストリーミング非対応のため細粒度進捗は擬似
-- 大容量音声頻発ならアクションより専用ストリーム（FastDDS loaned sample / gRPC 等）検討
-- フェーズ毎ログ以外に統計（処理時間）を Result に追加可能
-- 複数同時合成をリミットしたい場合は内部キュー実装を追加可能
+## 拡張アイデア
+
+- 合成完了を別トピックで通知 (例: `std_msgs/String` でファイルパス通知)
+- Service や Action を追加し同期呼び出しに対応
+- テキスト内のメタタグ (例: `[spk=2]`) をパースして話者切替
 
 ## ライセンス
-
 MIT
-# audio_generator (ament_cmake 版)
-
-## 変更点
-- build_type を ament_cmake に変更し、rosidl (action) を正しく生成
-- setup.py / entry_points を使わず CMake + ament_cmake_python で Python をインストール
-- 実行: `ros2 run audio_generator audio_generator_action_server`
-
-## ビルド手順
-```
-cd ~/ros2_ws/src/audio_generator
-# (ファイル更新後)
-cd ~/ros2_ws
-rm -rf build install log
-colcon build --packages-select audio_generator
-. install/setup.bash
-ros2 run audio_generator audio_generator_action_server
-```
