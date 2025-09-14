@@ -1,11 +1,13 @@
 # Setup VOICEBOX
+
+## Setup
 ### Install libralies
 ```shell
 $ sudo apt update
 $ sudo apt install p7zip
 $ sudo apt install curl
-$ sudo apt install libfuse2
 $ sudo add-apt-repository universe
+$ sudo apt install libfuse2
 ```
 ### Install VOICEVOX
 1. Open the link - [voicevox](https://voicevox.hiroshiba.jp/)
@@ -23,5 +25,13 @@ chmod +x VOICEVOX-CPU-X64.Installer.0.24.2.Linux.sh
 ```shell
 ./.voicevox/VOICEVOX.AppImage
 ```
-### 音声モデルファイルと声とスタイルIDの対応表
-[README](https://github.com/VOICEVOX/voicevox_vvm/blob/main/README.md)
+## References
+* [](https://zunko.jp/)
+* [voicevox_core](https://github.com/VOICEVOX/voicevox_core.git)
+* [voicevox_engine](https://github.com/VOICEVOX/voicevox_engine.git)
+* [voicevox_vvm](https://github.com/VOICEVOX/voicevox_vvm.git)
+
+> [!NOTE]
+> This software uses the VOICEVOX Engine (MIT License).<br>
+> VOICEVOX: https://voicevox.hiroshiba.jp/<br>
+> Generated voices (e.g., 四国めたん, ずんだもん) are subject to each character's usage guidelines.
