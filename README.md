@@ -9,10 +9,10 @@ ROS 2 (Humble 以降想定) で VOICEVOX エンジンを用いたテキスト音
 > Action 版ではフィードバック (進捗 / 状態 / 抜粋) やキャッシュ利用有無、キャンセル処理などが可能です.
 ---
 > [!NOTE]
-> 本プロジェクトは [VOICEVOX](https://voicevox.hiroshiba.jp/) のエンジンを利用して音声合成を行います.    
-> VOICEVOX エンジンは MIT ライセンスで提供されています.ソースコード: [voicevox_engine](https://github.com/VOICEVOX/voicevox_engine.git)
-> 生成される音声（例: 四国めたん / ずんだもん 等）を利用・公開する際は、各キャラクターの利用規約・ガイドラインに従ってください.    
-> VOICEVOX 音声モデル 利用規約: [VOICEVOX ソフトウェア利用規約](https://voicevox.hiroshiba.jp/term/) 
+> 本プログラムは [VOICEVOX](https://voicevox.hiroshiba.jp/) のエンジンを利用して音声合成を行います.    
+> VOICEVOX エンジンは MIT ライセンスで提供されています.ソースコード: [voicevox_engine](https://github.com/VOICEVOX/voicevox_engine.git)<br>
+> 生成される音声（例: 四国めたん / ずんだもん 等）を利用・公開する際は、各キャラクターの利用規約・ガイドラインに従ってください.<br>
+> VOICEVOX 音声モデル 利用規約: [VOICEVOX ソフトウェア利用規約](https://voicevox.hiroshiba.jp/term/) <br>
 > Default設定ではずんだもんを利用（VOICEVOX:ずんだもん）
 
 ## Main Features
