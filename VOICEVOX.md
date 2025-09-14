@@ -1,4 +1,4 @@
-# Setup VOICEBOX
+# VOICEVOX
 
 ## Setup
 ### Install libralies
@@ -26,10 +26,10 @@ chmod +x VOICEVOX-CPU-X64.Installer.0.24.2.Linux.sh
 ./.voicevox/VOICEVOX.AppImage
 ```
 ## References
-* [](https://zunko.jp/)
 * [voicevox_core](https://github.com/VOICEVOX/voicevox_core.git)
 * [voicevox_engine](https://github.com/VOICEVOX/voicevox_engine.git)
 * [voicevox_vvm](https://github.com/VOICEVOX/voicevox_vvm.git)
+* [](https://zunko.jp/)
 
 > [!NOTE]
 > This software uses the VOICEVOX Engine (MIT License).<br>
