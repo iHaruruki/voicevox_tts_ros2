@@ -2,6 +2,8 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
+from rcl_interfaces.msg import SetParametersResult  # 修正: ここからインポート
+
 import requests
 from pathlib import Path
 import platform
@@ -36,27 +38,48 @@ class AudioGeneratorNode(Node):
             10
         )
 
-        # For concurrency: a queue-less sequential lock
         self._synthesis_lock = threading.Lock()
 
         out_dir = Path(self.get_parameter('output_directory').value)
         out_dir.mkdir(parents=True, exist_ok=True)
         self.get_logger().info(f"Audio output directory: {out_dir}")
 
-        # Parameter callback for dynamic changes
         self.add_on_set_parameters_callback(self.on_param_change)
 
     def on_param_change(self, params):
+        """
+        パラメータ動的変更コールバック。
+        無効な値が来た場合は失敗を返して却下する。
+        """
         for p in params:
-            self.get_logger().info(f"Parameter changed: {p.name} -> {p.value}")
-        return rclpy.parameter.SetParametersResult(successful=True)
+            name = p.name
+            val = p.value
+            # 簡易バリデーション
+            if name == 'speed' and (val <= 0 or val > 5.0):
+                return SetParametersResult(successful=False, reason="speed must be in (0, 5.0]")
+            if name == 'volume' and (val <= 0 or val > 5.0):
+                return SetParametersResult(successful=False, reason="volume must be in (0, 5.0]")
+            if name == 'intonation' and (val < 0 or val > 5.0):
+                return SetParametersResult(successful=False, reason="intonation must be in [0, 5.0]")
+            if name == 'pitch' and (val < -5.0 or val > 5.0):
+                return SetParametersResult(successful=False, reason="pitch must be in [-5.0, 5.0]")
+            if name == 'speaker_id' and (val < 0):
+                return SetParametersResult(successful=False, reason="speaker_id must be >= 0")
+            if name == 'output_directory':
+                try:
+                    Path(val).mkdir(parents=True, exist_ok=True)
+                except Exception as e:
+                    return SetParametersResult(successful=False, reason=f"Cannot create output_directory: {e}")
+
+            self.get_logger().info(f"Parameter changed: {name} -> {val}")
+
+        return SetParametersResult(successful=True)
 
     def text_callback(self, msg: String):
         text = msg.data.strip()
         if not text:
             self.get_logger().warn("空文字列を受信したため無視します。")
             return
-        # Run synthesis in a thread to not block callback queue
         threading.Thread(target=self._handle_tts, args=(text,), daemon=True).start()
 
     def _handle_tts(self, text: str):
@@ -65,7 +88,8 @@ class AudioGeneratorNode(Node):
             return
         try:
             params = self._collect_params()
-            self.get_logger().info(f"合成開始: speaker={params['speaker_id']} text='{text[:40]}'...")
+            self.get_logger().info(
+                f"合成開始: speaker={params['speaker_id']} text='{text[:40] + ('...' if len(text) > 40 else '')}'")
             wav_path = self._tts(
                 text=text,
                 **params
@@ -104,7 +128,6 @@ class AudioGeneratorNode(Node):
              enable_katakana_english: bool,
              output_directory: str,
              **kwargs):
-        # Prepare request
         query_resp = requests.post(
             f"{engine_url}/audio_query",
             params={
@@ -117,7 +140,7 @@ class AudioGeneratorNode(Node):
         )
         query_resp.raise_for_status()
         query = query_resp.json()
-        # Adjust parameters
+
         query["speedScale"] = float(speed)
         query["pitchScale"] = float(pitch)
         query["intonationScale"] = float(intonation)
@@ -137,7 +160,6 @@ class AudioGeneratorNode(Node):
         return path
 
     def _play_wav(self, path: Path):
-        # Try simpleaudio
         try:
             import simpleaudio as sa
             wave_obj = sa.WaveObject.from_wave_file(str(path))
@@ -148,7 +170,6 @@ class AudioGeneratorNode(Node):
         except Exception as e:
             self.get_logger().warn(f"simpleaudio再生失敗: {e} -> フォールバック")
 
-        # Fallback commands
         if shutil.which("ffplay"):
             subprocess.run(["ffplay", "-nodisp", "-autoexit", str(path)], check=False)
             return
