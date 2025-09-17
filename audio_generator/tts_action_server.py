@@ -30,7 +30,7 @@ class SpeakTextActionServer(Node):
         self.declare_parameter('enable_interrogative_upspeak', True)
         self.declare_parameter('enable_katakana_english', True)
         self.declare_parameter('playback', True)
-        self.declare_parameter('save_wav', True)
+        self.declare_parameter('save_wav', False)
         self.declare_parameter('output_directory', '/tmp/audio_generator')
 
         out_dir = Path(self.get_parameter('output_directory').value)
