@@ -69,6 +69,7 @@ git clone https://github.com/iHaruruki/audio_generator_interfaces.git
 ```bash
 $ cd ~/ros2_ws
 $ colcon build --symlink-install --packages-select audio_generator_interfaces
+$ source install setup.bash
 $ colcon build --symlink-install --packages-select audio_generator
 $ source install/setup.bash
 ```
