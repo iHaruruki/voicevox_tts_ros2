@@ -3,7 +3,7 @@ from glob import glob
 from setuptools import setup, find_packages
 from pathlib import Path
 
-package_name = 'audio_generator'
+package_name = 'voicevox_tts_ros2'
 
 setup(
     name=package_name,

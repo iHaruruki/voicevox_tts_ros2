@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>audio_generator</name>
+  <name>voicevox_tts_ros2</name>
   <version>0.0.1</version>
   <description>ROS 2 node that subscribes to a text topic and generates / plays synthesized audio using VOICEVOX.</description>
   <maintainer email="you@example.com">Your Name</maintainer>
@@ -11,7 +11,7 @@
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
 
-  <depend>audio_generator_interfaces</depend>
+  <depend>voicevox_tts_interfaces_ros2</depend>
   <depend>action_msgs</depend>
 
   <!-- system package names are environment-dependent. Python deps via pip if必要 -->
