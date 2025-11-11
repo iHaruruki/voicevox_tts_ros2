@@ -1,4 +1,4 @@
-# audio_generator
+# voicevox_tts_ros2
 
 ROS 2 (Humble 以降想定) で VOICEVOX エンジンを用いたテキスト音声合成 (TTS) を行うパッケージです.<br>
 以下 2 つの API スタイルを提供します:
@@ -32,7 +32,7 @@ ros2_ws/
     audio_generator_interfaces/   ← Action インタフェース (別パッケージ)
 ```
 > [!IMPORTANT]
-> 別途パッケージ([audio_generator_interfaces](https://github.com/iHaruruki/audio_generator_interfaces.git))のcloneが必要です.<br>
+> 別途パッケージ([audio_generator_interfaces](https://github.com/iHaruruki/voicevox_tts_interface_ros2.git))のcloneが必要です.<br>
 > [setup](#setup)を参照
 ---
 
@@ -50,7 +50,7 @@ ros2_ws/
 ## Setup
 1. Install VOICEVOX
 Please follow link<br>
-[VOICEBOX.md](https://github.com/iHaruruki/audio_generator/blob/feature/VOICEVOX.md)
+[VOICEBOX.md](VOICEVOX.md)
 2. Python 依存:
 ```bash
 pip3 install requests simpleaudio
@@ -58,19 +58,19 @@ pip3 install requests simpleaudio
 3. Clone this package
 ```bash
 cd ~/ros2_ws/src
-git clone https://github.com/iHaruruki/audio_generator.git
+git clone https://github.com/iHaruruki/voicevox_tts_ros2.git
 ```
 4. Clone `audio_generator_interfaces` package
 ```bash
 cd ~/ros2_ws/src
-git clone https://github.com/iHaruruki/audio_generator_interfaces.git
+git clone https://github.com/iHaruruki/voicevox_tts_ros2.git
 ```
 5. Build
 ```bash
 $ cd ~/ros2_ws
-$ colcon build --symlink-install --packages-select audio_generator_interfaces
+$ colcon build --symlink-install --packages-select voicevox_tts_ros2
 $ source install setup.bash
-$ colcon build --symlink-install --packages-select audio_generator
+$ colcon build --symlink-install --packages-select voicevox_tts_interface_ros2
 $ source install/setup.bash
 ```
 ---
@@ -85,7 +85,7 @@ Launch VOICEVOX
 ```
 Run node
 ```bash
-ros2 launch audio_generator audio_generator_launch.py
+ros2 launch voicevox_tts_ros2 audio_generator_launch.py
 ```
 Send text
 ```bash
@@ -115,7 +115,7 @@ ros2 param set /audio_generator_node playback false
 ### 2. Actionを使用した起動
 #### インタフェース確認
 ```bash
-ros2 interface show audio_generator_interfaces/action/SpeakText
+ros2 interface voicevox_tts_interfaces_ros2/action/SpeakText
 ```
 Display
 ```bash
@@ -151,12 +151,12 @@ Launch VOICEVOX
 ```
 Run node
 ```bash
-ros2 run audio_generator tts_action_server
+ros2 run voicevox_tts_ros2 tts_action_server
 ```
 
 任意パラメータ上書き:
 ```bash
-ros2 run audio_generator tts_action_server --ros-args \
+ros2 run voicevox_tts_ros2 tts_action_server --ros-args \
   -p engine_url:=http://127.0.0.1:50021 \
   -p speaker_id:=3 \
   -p speed:=0.85 \
@@ -169,7 +169,7 @@ ros2 run audio_generator tts_action_server --ros-args \
 #### ゴール送信 (CLI)
 ```bash
 ros2 action send_goal --feedback /speak_text \
-  audio_generator_interfaces/action/SpeakText \
+  voicevox_tts_interfaces_ros2/action/SpeakText \
   "{text: 'Action インタフェースのテストです。', speaker_id: -1, playback: true, speed: 0.0, pitch: 0.0, intonation: 0.0, volume: 0.0, allow_cache: true}"
 ```
 
