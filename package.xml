@@ -3,8 +3,8 @@
   <name>voicevox_tts_ros2</name>
   <version>0.0.1</version>
   <description>ROS 2 node that subscribes to a text topic and generates / plays synthesized audio using VOICEVOX.</description>
-  <maintainer email="you@example.com">Your Name</maintainer>
-  <license>MIT</license>
+  <maintainer email="haruki.isono861@gmail.com">Haruki Isono</maintainer>
+  <license>Todo</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 

@@ -21,10 +21,10 @@ setup(
         # 'simpleaudio',  # 任意
     ],
     zip_safe=True,
-    maintainer='Your Name',
-    maintainer_email='you@example.com',
+    maintainer='Haruki Isono',
+    maintainer_email='haruki.isono861@gmail.com',
     description='Subscribe to text topic and generate audio via VOICEVOX.',
-    license='MIT',
+    license='Todo',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
