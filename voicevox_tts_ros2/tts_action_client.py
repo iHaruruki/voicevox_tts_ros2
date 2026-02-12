@@ -1,82 +1,262 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.action import ActionClient
+from rclpy.action import ActionServer, GoalResponse, CancelResponse
 from voicevox_tts_interface_ros2.action import SpeakText
+
+from pathlib import Path
+import requests
 import time
+import datetime
+import io
+import wave
+import tempfile
+import platform
+import shutil
+import subprocess
+import traceback  # noqa: F401 (残しておくとデバッグに便利)
+import os
 
-class TTSClient(Node):
+
+class SpeakTextActionServer(Node):
     def __init__(self):
-        super().__init__('tts_action_client')
-        self._client = ActionClient(self, SpeakText, 'speak_text')
+        super().__init__('speak_text_action_server')
 
-    def send_goal(self, text: str, cancel_after_sec: float = 0.0):
-        if not self._client.wait_for_server(timeout_sec=5.0):
-            self.get_logger().error("Action server not available.")
-            return
+        # Topic ノードと同等のパラメータを Action 側にも対応させる
+        self.declare_parameter('engine_url', 'http://127.0.0.1:50021')
+        self.declare_parameter('speaker_id', 3)
+        self.declare_parameter('speed', 1.0)
+        self.declare_parameter('pitch', 0.0)
+        self.declare_parameter('intonation', 1.0)
+        self.declare_parameter('volume', 1.0)
+        self.declare_parameter('enable_interrogative_upspeak', True)
+        self.declare_parameter('enable_katakana_english', True)
+        self.declare_parameter('playback', True)
+        self.declare_parameter('output_directory', os.path.expanduser('~/ros2_ws/src/voicevox_tts_ros2'))
+        self.declare_parameter('save_wav', False)
+        self.declare_parameter('publish_audio_bytes', False)
+        self.declare_parameter('stream_sentence_mode', True)
+        self.declare_parameter('sentence_separators', '。！？!?\n')
 
-        goal_msg = SpeakText.Goal()
-        goal_msg.text = text
-        goal_msg.speaker_id = -1        # -1 = サーバ既定
-        goal_msg.playback = True
-        goal_msg.speed = 0.0            # 0.0 = 既定維持
-        goal_msg.pitch = 0.0
-        goal_msg.intonation = 0.0
-        goal_msg.volume = 0.0
-        goal_msg.allow_cache = True     # キャッシュ許可
+        out_dir = Path(self.get_parameter('output_directory').value)
+        out_dir.mkdir(parents=True, exist_ok=True)
 
-        self.get_logger().info("Sending goal...")
-        send_future = self._client.send_goal_async(
-            goal_msg,
-            feedback_callback=self.feedback_cb
+        # シンプルメモリキャッシュ（後で LRU 化可能）
+        self._cache = {}
+
+        self._action_server = ActionServer(
+            self,
+            SpeakText,
+            'speak_text',
+            execute_callback=self.execute_cb,
+            goal_callback=self.goal_cb,
+            cancel_callback=self.cancel_cb
         )
-        send_future.add_done_callback(
-            lambda f: self.goal_response_cb(f, cancel_after_sec)
+        self.get_logger().info("SpeakText Action Server ready.")
+
+    def goal_cb(self, goal_request: SpeakText.Goal):
+        if not goal_request.text:
+            self.get_logger().warn("空テキスト goal 拒否")
+            return GoalResponse.REJECT
+        return GoalResponse.ACCEPT
+
+    def cancel_cb(self, goal_handle):
+        self.get_logger().info(f"Cancel requested for goal id={goal_handle.goal_id}")
+        return CancelResponse.ACCEPT
+
+    async def execute_cb(self, goal_handle):
+        goal = goal_handle.request
+        started = time.perf_counter()
+        excerpt = goal.text[:40] + ("..." if len(goal.text) > 40 else "")
+        self.get_logger().info(f"[ACTION] Start: '{excerpt}'")
+
+        # 初期フィードバック
+        fb = SpeakText.Feedback()
+        fb.state = "synthesizing"
+        fb.progress = 0.0
+        fb.remaining_queue = 0
+        fb.excerpt = excerpt
+        goal_handle.publish_feedback(fb)
+
+        # Goalで上書き (0や負値で既定値を使う方針)
+        server_speaker_id = int(self.get_parameter('speaker_id').value)
+        server_playback = bool(self.get_parameter('playback').value)
+        server_speed = float(self.get_parameter('speed').value)
+        server_pitch = float(self.get_parameter('pitch').value)
+        server_intonation = float(self.get_parameter('intonation').value)
+        server_volume = float(self.get_parameter('volume').value)
+
+        speaker_id = goal.speaker_id if goal.speaker_id >= 0 else server_speaker_id
+        playback = goal.playback if goal.playback else server_playback
+        speed = goal.speed if goal.speed > 0 else server_speed
+        pitch = goal.pitch if goal.pitch != 0 else server_pitch
+        intonation = goal.intonation if goal.intonation != 0 else server_intonation
+        volume = goal.volume if goal.volume != 0 else server_volume
+
+        engine_url = self.get_parameter('engine_url').value
+        enable_interrogative_upspeak = bool(self.get_parameter('enable_interrogative_upspeak').value)
+        enable_katakana_english = bool(self.get_parameter('enable_katakana_english').value)
+        save_wav = bool(self.get_parameter('save_wav').value)
+        output_dir = self.get_parameter('output_directory').value
+
+        # 追加パラメータ（現状ロジックには未使用だが、Topic と揃えるために宣言・取得のみ）
+        publish_audio_bytes = bool(self.get_parameter('publish_audio_bytes').value)
+        stream_sentence_mode = bool(self.get_parameter('stream_sentence_mode').value)
+        sentence_separators = str(self.get_parameter('sentence_separators').value)
+        _ = (publish_audio_bytes, stream_sentence_mode, sentence_separators)  # 未使用抑止
+
+        cache_key = (
+            goal.text, speaker_id, speed, pitch, intonation, volume,
+            enable_interrogative_upspeak, enable_katakana_english
         )
+        from_cache = False
+        wav_bytes = None
 
-    def goal_response_cb(self, future, cancel_after_sec: float):
-        goal_handle = future.result()
-        if not goal_handle.accepted:
-            self.get_logger().warn("Goal rejected.")
-            return
-        self.get_logger().info("Goal accepted.")
+        if goal.allow_cache and cache_key in self._cache:
+            wav_bytes = self._cache[cache_key]
+            from_cache = True
+            self.get_logger().info("[ACTION] Cache hit")
+        else:
+            try:
+                query_resp = requests.post(
+                    f"{engine_url}/audio_query",
+                    params={
+                        "text": goal.text,
+                        "speaker": speaker_id,
+                        "enable_interrogative_upspeak": enable_interrogative_upspeak,
+                        "enable_katakana_english": enable_katakana_english
+                    },
+                    timeout=30
+                )
+                query_resp.raise_for_status()
+                query = query_resp.json()
+                query["speedScale"] = float(speed)
+                query["pitchScale"] = float(pitch)
+                query["intonationScale"] = float(intonation)
+                query["volumeScale"] = float(volume)
 
-        if cancel_after_sec > 0:
-            self.get_logger().info(f"Will cancel after {cancel_after_sec}s")
-            self.create_timer(cancel_after_sec, lambda: self.request_cancel(goal_handle))
+                wav_resp = requests.post(
+                    f"{engine_url}/synthesis",
+                    params={"speaker": speaker_id},
+                    json=query,
+                    timeout=120
+                )
+                wav_resp.raise_for_status()
+                wav_bytes = wav_resp.content
+                if goal.allow_cache:
+                    self._cache[cache_key] = wav_bytes
+            except Exception as e:
+                self.get_logger().error(f"Synthesis failed: {e}")
+                result = SpeakText.Result()
+                result.success = False
+                result.error_message = str(e)
+                result.saved_path = ""
+                result.from_cache = False
+                result.elapsed_ms = int((time.perf_counter() - started) * 1000)
+                result.used_speaker_id = speaker_id
+                goal_handle.abort()
+                return result
 
-        result_future = goal_handle.get_result_async()
-        result_future.add_done_callback(self.result_cb)
+        if goal_handle.is_cancel_requested:
+            self.get_logger().warn("Canceled after synthesis")
+            result = SpeakText.Result()
+            result.success = False
+            result.error_message = "canceled"
+            result.saved_path = ""
+            result.from_cache = from_cache
+            result.elapsed_ms = int((time.perf_counter() - started) * 1000)
+            result.used_speaker_id = speaker_id
+            goal_handle.canceled()
+            return result
 
-    def feedback_cb(self, feedback_msg):
-        fb = feedback_msg.feedback
-        self.get_logger().info(
-            f"Feedback: state={fb.state} progress={fb.progress:.2f} excerpt='{fb.excerpt}'"
-        )
+        fb.state = "playing" if playback else "finalizing"
+        fb.progress = 0.5 if playback else 0.9
+        goal_handle.publish_feedback(fb)
 
-    def request_cancel(self, goal_handle):
-        if goal_handle.is_active:
-            self.get_logger().info("Requesting cancel...")
-            goal_handle.cancel_goal_async()
+        saved_path = ""
+        if save_wav:
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            p = Path(output_dir) / f"tts_{ts}.wav"
+            p.write_bytes(wav_bytes)
+            saved_path = str(p)
 
-    def result_cb(self, future):
-        result = future.result().result
-        status = future.result().status
-        self.get_logger().info(
-            f"Result: success={result.success} status_code={status} "
-            f"elapsed_ms={result.elapsed_ms} cache={result.from_cache} path={result.saved_path}"
-        )
-        # 全処理終わったらノード停止
-        rclpy.shutdown()
+        if playback:
+            canceled = await self._play_async(wav_bytes, goal_handle)
+            if canceled:
+                self.get_logger().warn("Canceled during playback")
+                result = SpeakText.Result()
+                result.success = False
+                result.error_message = "canceled"
+                result.saved_path = saved_path
+                result.from_cache = from_cache
+                result.elapsed_ms = int((time.perf_counter() - started) * 1000)
+                result.used_speaker_id = speaker_id
+                goal_handle.canceled()
+                return result
+
+        fb.state = "done"
+        fb.progress = 1.0
+        goal_handle.publish_feedback(fb)
+
+        result = SpeakText.Result()
+        result.success = True
+        result.error_message = ""
+        result.saved_path = saved_path
+        result.from_cache = from_cache
+        result.elapsed_ms = int((time.perf_counter() - started) * 1000)
+        result.used_speaker_id = speaker_id
+        goal_handle.succeed()
+        self.get_logger().info(f"[ACTION] Done elapsed={result.elapsed_ms}ms cache={from_cache}")
+        return result
+
+    async def _play_async(self, wav_bytes: bytes, goal_handle):
+        try:
+            import simpleaudio as sa
+            with io.BytesIO(wav_bytes) as bio:
+                with wave.open(bio, 'rb') as wf:
+                    frames = wf.readframes(wf.getnframes())
+                    sample_width = wf.getsampwidth()
+                    channels = wf.getnchannels()
+                    rate = wf.getframerate()
+            play_obj = sa.play_buffer(frames, channels, sample_width, rate)
+            while play_obj.is_playing():
+                if goal_handle.is_cancel_requested:
+                    play_obj.stop()
+                    return True
+                await self._sleep_poll()
+            return False
+        except Exception as e:
+            self.get_logger().warn(f"simpleaudio failed: {e} -> fallback")
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
+            tmp.write(wav_bytes)
+            tmp.flush()
+            if shutil.which("ffplay"):
+                subprocess.run(["ffplay", "-nodisp", "-autoexit", tmp.name], check=False)
+            elif shutil.which("paplay"):
+                subprocess.run(["paplay", tmp.name], check=False)
+            elif shutil.which("aplay"):
+                subprocess.run(["aplay", tmp.name], check=False)
+            elif platform.system() == "Darwin" and shutil.which("afplay"):
+                subprocess.run(["afplay", tmp.name], check=False)
+            return goal_handle.is_cancel_requested
+
+    async def _sleep_poll(self):
+        end = time.time() + 0.05
+        while time.time() < end:
+            rclpy.spin_once(self, timeout_sec=0.0)
+            time.sleep(0.005)
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = TTSClient()
-    node.send_goal("アクションクライアントテストです。", cancel_after_sec=0.0)
+    node = SpeakTextActionServer()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
