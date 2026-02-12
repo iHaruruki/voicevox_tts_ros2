@@ -67,12 +67,11 @@ git clone https://github.com/iHaruruki/voicevox_tts_ros2.git
 ```
 5. Build
 ```bash
-$ cd ~/ros2_ws
-$ colcon build --symlink-install --packages-select voicevox_tts_ros2
-$ source install setup.bash
-$ colcon build --symlink-install --packages-select voicevox_tts_interface_ros2
-$ source install/setup.bash
-```
+cd ~/ros2_ws
+colcon build --symlink-install --packages-select voicevox_tts_interface_ros2
+source install/setup.bash
+colcon build --symlink-install --packages-select voicevox_tts_ros2
+source install setup.bash
 ---
 
 ## How to Use
