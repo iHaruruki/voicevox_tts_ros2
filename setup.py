@@ -7,7 +7,7 @@ package_name = 'voicevox_tts_ros2'
 
 setup(
     name=package_name,
-    version='0.0.1',
+    version='1.0.0',
     packages=find_packages(exclude=[]),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -28,9 +28,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'audio_generator_node = audio_generator.audio_generator_node:main',
-            'tts_action_server = audio_generator.tts_action_server:main',
-            'tts_action_client = audio_generator.tts_action_client:main',
+            'tts_topic_node = voicevox_tts_ros2.tts_topic:main',
+            'tts_action_server = voicevox_tts_ros2.tts_action_server:main',
+            'tts_action_client = voicevox_tts_ros2.tts_action_client:main',
         ],
     },
 )

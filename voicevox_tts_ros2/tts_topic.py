@@ -1,4 +1,5 @@
 import rclpy
+import os
 from rclpy.node import Node
 from std_msgs.msg import String, UInt8MultiArray  # ByteMultiArray -> UInt8MultiArray
 from rcl_interfaces.msg import SetParametersResult
@@ -19,7 +20,7 @@ from queue import Queue, Empty
 
 class AudioGeneratorNode(Node):
     def __init__(self):
-        super().__init__('audio_generator_node')
+        super().__init__('voicevox_tts_topic_node')
 
         # Parameters
         self.declare_parameter('engine_url', 'http://127.0.0.1:50021')
@@ -31,7 +32,7 @@ class AudioGeneratorNode(Node):
         self.declare_parameter('enable_interrogative_upspeak', True)
         self.declare_parameter('enable_katakana_english', True)
         self.declare_parameter('playback', True)
-        self.declare_parameter('output_directory', '/tmp/audio_generator')
+        self.declare_parameter('output_directory', os.path.expanduser('/$HOME/ros2_ws/src/voicevox_tts_ros2'))
         self.declare_parameter('save_wav', False)
         self.declare_parameter('publish_audio_bytes', False)
         self.declare_parameter('stream_sentence_mode', True)
@@ -40,7 +41,7 @@ class AudioGeneratorNode(Node):
         # Subscriber
         self.subscription = self.create_subscription(
             String,
-            '/tts_text',
+            '/voicevox_tts_text',
             self.text_callback,
             10
         )

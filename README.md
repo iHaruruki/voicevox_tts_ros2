@@ -88,7 +88,7 @@ ros2 launch voicevox_tts_ros2 audio_generator_launch.py
 ```
 Send text
 ```bash
-ros2 topic pub /tts_text std_msgs/String "data: 'こんにちは、テストです。'"
+ros2 topic pub --once /voicevox_tts_text std_msgs/String "data: 'こんにちは、テストです。'"
 ```
 #### 動的パラメータ
 | パラメータ | 型 | 既定値 | 説明 |
