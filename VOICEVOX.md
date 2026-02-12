@@ -2,27 +2,25 @@
 
 ## Setup
 ### Install libralies
-```shell
-$ sudo apt update
-$ sudo apt install p7zip
-$ sudo apt install curl
-$ sudo add-apt-repository universe
-$ sudo apt install libfuse2
+```bash
+sudo apt update
+sudo apt install -y p7zip curl libfuse2
+sudo add-apt-repository universe
 ```
 ### Install VOICEVOX
 1. Open the link - [voicevox](https://voicevox.hiroshiba.jp/)
 2. Click `ダウンロード` button
 3. Download OS:`Linux`, 対応モード:`CPU(x64)`, パッケージ: `インストーラー`
 4. Give execution permission
-```shell
+```bash
 chmod +x VOICEVOX-CPU-X64.Installer.0.24.2.Linux.sh
 ```
 5. Install
-```shell
+```bash
 ./VOICEVOX-CPU.Installer.0.15.2.Linux.sh
 ```
 6. Open the VOICEVOX
-```shell
+```bash
 ./.voicevox/VOICEVOX.AppImage
 ```
 ## References
