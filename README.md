@@ -132,7 +132,7 @@ ros2 param set /tts_topic_node playback false
 ### 2. Actionを使用した起動
 #### インタフェース確認
 ```bash
-ros2 interface voicevox_tts_interfaces_ros2/action/SpeakText
+ros2 interface show voicevox_tts_interface_ros2/action/SpeakText
 ```
 Display
 ```bash
