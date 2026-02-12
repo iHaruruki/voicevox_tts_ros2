@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionServer, GoalResponse, CancelResponse
-from audio_generator_interfaces.action import SpeakText
+from voicevox_tts_interface_ros2.action import SpeakText
 
 from pathlib import Path
 import requests

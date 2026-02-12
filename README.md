@@ -262,17 +262,17 @@ ros2 action send_goal /speak_text audio_generator_interfaces/action/SpeakText \
 ---
 
 ### Python 簡易 Action クライアント例
-[tts_action_client.py](/audio_generator/tts_action_client.py)
+[tts_action_client.py](/voicevox_tts_ros2/tts_action_client.py)
 ```
 ros2_ws/
   src/
-    audio_generator/
-      audio_generator/
+    voicevox_tts_ros2/
+      voicevox_tts_ros2/
         tts_action_client.py
 ```
 Node about `tts_action_client.py`
 ```shell
-ros2 run audio_generator tts_action_client
+ros2 run voicevox_tts_ros2 tts_action_client
 ```
 ---
 
