@@ -33,7 +33,7 @@ class SpeakTextActionServer(Node):
         self.declare_parameter('playback', True)
         self.declare_parameter('output_directory', os.path.expanduser('~/ros2_ws/src/voicevox_tts_ros2'))
         self.declare_parameter('save_wav', False)
-        self.declare_parameter('publish_audio_bytes', True)
+        self.declare_parameter('publish_audio_bytes', False)
         self.declare_parameter('stream_sentence_mode', True)
         self.declare_parameter('sentence_separators', '。！？!?\n')
 
@@ -55,7 +55,7 @@ class SpeakTextActionServer(Node):
 
     def goal_cb(self, goal_request: SpeakText.Goal):
         if not goal_request.text:
-            self.get_logger().warn("空テキスト goal 拒否")
+            self.get_logger().warn("Empty text goal denied")
             return GoalResponse.REJECT
         return GoalResponse.ACCEPT
 
