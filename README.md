@@ -129,7 +129,7 @@ ros2_ws/
    ```bash
    nano ~/ros2_ws/src/voicevox_tts_ros2/speech_script/speech1.txt
    ```
-
+  `speech1.txt`
    ```text
    これは音声読み上げのテスト用サンプル文章です。およそ三百文字程度になるように、適度な長さの文をいくつか並べています。
    句読点や疑問文、感嘆符などが含まれていることで、イントネーションやポーズの違いも確認しやすくなります。
