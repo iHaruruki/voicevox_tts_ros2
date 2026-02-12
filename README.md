@@ -82,13 +82,28 @@ Launch VOICEVOX
 ```bash
 ./.voicevox/VOICEVOX.AppImage
 ```
-Run node
+#### Run node
 ```bash
 ros2 launch voicevox_tts_ros2 audio_generator_launch.py
 ```
-Send text
+#### Send text on command line
 ```bash
 ros2 topic pub --once /voicevox_tts_text std_msgs/String "data: 'こんにちは、テストです。'"
+```
+#### Send text on `.txt` file
+Make `speech1.txt` file
+```bash
+nano ~/ros2_ws/src/voicevox_tts_ros2/speech_script/speech1.txt
+```
+```txt
+これは音声読み上げのテスト用サンプル文章です。およそ三百文字程度になるように、適度な長さの文をいくつか並べています。
+句読点や疑問文、感嘆符などが含まれていることで、イントネーションやポーズの違いも確認しやすくなります。
+例えば、こうした説明文を読み上げることで、話速や声の高さ、抑揚の強さなどを調整しやすくなります。
+もし途中で不自然な区切れ方をしてしまう場合は、読点を増やしたり、改行を入れたりして文の区切り方を調整してみてください。
+```
+```bash
+chmod +x ~/ros2_ws/src/voicevox_tts_ros2/voicevox_tts_ros2/topic_pub.py
+python3 ~/ros2_ws/src/voicevox_tts_ros2/voicevox_tts_ros2/topic_pub.py
 ```
 #### 動的パラメータ
 | パラメータ | 型 | 既定値 | 説明 |
@@ -102,13 +117,16 @@ ros2 topic pub --once /voicevox_tts_text std_msgs/String "data: 'こんにちは
 | enable_interrogative_upspeak | bool | true | 疑問形語尾上げ |
 | enable_katakana_english | bool | true | 英単語カタカナ化 |
 | playback | bool | true | 自動再生有無 |
-| output_directory | string | /tmp/audio_generator | WAV 保存先 |
+| output_directory | string | `~/ros2_ws/src/voicevox_tts_ros2` | WAV 保存先 |
+| publish_audio_bytes | bool | False | 合成した音声データ（WAV バイト列）を `/tts_audio` トピックに配信するかどうか |
+| stream_sentence_mode | bool| True | true の場合、受信したテキストを文ごとに分割して順次合成するストリームモードを有効化 |
+| sentence_separators | string | '。！？!?\\n' | ストリームモードで文の区切りとして扱う文字の集合 |
 
 **パラメータ変更例**
 ```bash
-ros2 param set /audio_generator_node speaker_id 1
-ros2 param set /audio_generator_node speed 1.2
-ros2 param set /audio_generator_node playback false
+ros2 param set /tts_topic_node speaker_id 1
+ros2 param set /tts_topic_node speed 1.2
+ros2 param set /tts_topic_node playback false
 ```
 
 ### 2. Actionを使用した起動
