@@ -18,6 +18,7 @@ import tempfile
 import re
 from queue import Queue, Empty
 
+
 class AudioGeneratorNode(Node):
     def __init__(self):
         super().__init__('voicevox_tts_topic_node')
@@ -32,9 +33,9 @@ class AudioGeneratorNode(Node):
         self.declare_parameter('enable_interrogative_upspeak', True)
         self.declare_parameter('enable_katakana_english', True)
         self.declare_parameter('playback', True)
-        self.declare_parameter('output_directory', os.path.expanduser('/$HOME/ros2_ws/src/voicevox_tts_ros2'))
+        self.declare_parameter('output_directory', os.path.expanduser('~/ros2_ws/src/voicevox_tts_ros2'))
         self.declare_parameter('save_wav', False)
-        self.declare_parameter('publish_audio_bytes', False)
+        self.declare_parameter('publish_audio_bytes', True)
         self.declare_parameter('stream_sentence_mode', True)
         self.declare_parameter('sentence_separators', '。！？!?\\n')
 
@@ -46,7 +47,7 @@ class AudioGeneratorNode(Node):
             10
         )
 
-        # Publisher: /tts_audio (各 WAV セグメントの生バイト列)
+        # Publisher: /tts_audio (raw byte array of each WAV segment)
         self.audio_pub = self.create_publisher(UInt8MultiArray, '/tts_audio', 10)
 
         # Locks / state
@@ -88,7 +89,7 @@ class AudioGeneratorNode(Node):
     def text_callback(self, msg: String):
         text = msg.data.strip()
         if not text:
-            self.get_logger().warn("空文字列を受信したため無視します。")
+            self.get_logger().warn("Received empty string. Ignoring.")
             return
         if self.get_parameter('stream_sentence_mode').value:
             self._enqueue_stream_text(text)
@@ -107,9 +108,12 @@ class AudioGeneratorNode(Node):
                 self._stream_active = True
                 self._cancel_stream = False
                 threading.Thread(target=self._stream_worker, daemon=True).start()
-                self.get_logger().info(f"ストリーム開始: {len(sentences)} 文をキューへ")
+                self.get_logger().info(f"Stream started: queued {len(sentences)} sentence(s)")
             else:
-                self.get_logger().info(f"ストリームに {len(sentences)} 文を追加 (残キュー: {self._stream_queue.qsize()})")
+                self.get_logger().info(
+                    f"Added {len(sentences)} sentence(s) to stream "
+                    f"(remaining in queue: {self._stream_queue.qsize()})"
+                )
 
     def _split_sentences(self, text: str, seps: str):
         if not text:
@@ -132,7 +136,7 @@ class AudioGeneratorNode(Node):
         return [m for m in merged if m]
 
     def _stream_worker(self):
-        self.get_logger().info("ストリームワーカー起動")
+        self.get_logger().info("Stream worker started")
         try:
             while not self._cancel_stream:
                 try:
@@ -140,7 +144,7 @@ class AudioGeneratorNode(Node):
                 except Empty:
                     if self._stream_queue.empty():
                         if not self._wait_for_more(1.0):
-                            self.get_logger().info("ストリーム完了（追加文なし）")
+                            self.get_logger().info("Stream finished (no more sentences)")
                             break
                         else:
                             continue
@@ -148,26 +152,26 @@ class AudioGeneratorNode(Node):
 
                 params = self._collect_params()
                 short = sentence[:30] + ('...' if len(sentence) > 30 else '')
-                self.get_logger().info(f"[STREAM] 合成: '{short}'")
+                self.get_logger().info(f"[STREAM] Synthesizing: '{short}'")
                 try:
                     wav_bytes, saved_path = self._tts_bytes(sentence, **params)
                     if saved_path:
-                        self.get_logger().info(f"[STREAM] 保存: {saved_path.name}")
+                        self.get_logger().info(f"[STREAM] Saved: {saved_path.name}")
                     if params['publish_audio_bytes']:
                         msg = UInt8MultiArray()
-                        msg.data = list(wav_bytes)  # uint8[] に int リストをそのまま
+                        msg.data = list(wav_bytes)  # uint8[] as list of ints
                         self.audio_pub.publish(msg)
-                        self.get_logger().info(f"[STREAM] publish {len(wav_bytes)} bytes")
+                        self.get_logger().info(f"[STREAM] Published {len(wav_bytes)} bytes to /tts_audio")
                     if params['playback']:
                         self._play_wav_bytes(wav_bytes)
                 except Exception as e:
-                    self.get_logger().error(f"[STREAM] 合成失敗: {e}")
+                    self.get_logger().error(f"[STREAM] Synthesis failed: {e}")
                 finally:
                     self._stream_queue.task_done()
         finally:
             with self._stream_lock:
                 self._stream_active = False
-            self.get_logger().info("ストリームワーカー終了")
+            self.get_logger().info("Stream worker finished")
 
     def _wait_for_more(self, seconds: float):
         import time
@@ -187,31 +191,33 @@ class AudioGeneratorNode(Node):
                 self._stream_queue.task_done()
             except Empty:
                 break
-        self.get_logger().info("ストリームキャンセル指示")
+        self.get_logger().info("Stream cancel requested")
 
     # --------------- Single mode ---------------
     def _handle_tts_single(self, text: str):
         if not self._synthesis_lock.acquire(blocking=False):
-            self.get_logger().warn("前の音声合成中のためスキップ: " + text)
+            self.get_logger().warn("Another synthesis is in progress. Skipping: " + text)
             return
         try:
             params = self._collect_params()
             short = text[:40] + ('...' if len(text) > 40 else '')
-            self.get_logger().info(f"合成開始: speaker={params['speaker_id']} text='{short}'")
+            self.get_logger().info(
+                f"Starting synthesis: speaker={params['speaker_id']} text='{short}'"
+            )
             wav_bytes, saved_path = self._tts_bytes(text, **params)
             if saved_path:
-                self.get_logger().info(f"合成完了 (保存): {saved_path}")
+                self.get_logger().info(f"Synthesis finished (saved): {saved_path}")
             else:
-                self.get_logger().info("合成完了 (メモリのみ)")
+                self.get_logger().info("Synthesis finished (in memory only)")
             if params['publish_audio_bytes']:
                 msg = UInt8MultiArray()
                 msg.data = list(wav_bytes)
                 self.audio_pub.publish(msg)
-                self.get_logger().info(f"/tts_audio に {len(wav_bytes)} bytes publish")
+                self.get_logger().info(f"Published {len(wav_bytes)} bytes to /tts_audio")
             if params['playback']:
                 self._play_wav_bytes(wav_bytes)
         except Exception as e:
-            self.get_logger().error(f"合成失敗: {e}\n{traceback.format_exc()}")
+            self.get_logger().error(f"Synthesis failed: {e}\n{traceback.format_exc()}")
         finally:
             self._synthesis_lock.release()
 
@@ -232,10 +238,21 @@ class AudioGeneratorNode(Node):
             'publish_audio_bytes': bool(self.get_parameter('publish_audio_bytes').value),
         }
 
-    def _tts_bytes(self, text: str, engine_url: str, speaker_id: int, speed: float,
-                   pitch: float, intonation: float, volume: float,
-                   enable_interrogative_upspeak: bool, enable_katakana_english: bool,
-                   output_directory: str, save_wav: bool, **kwargs):
+    def _tts_bytes(
+        self,
+        text: str,
+        engine_url: str,
+        speaker_id: int,
+        speed: float,
+        pitch: float,
+        intonation: float,
+        volume: float,
+        enable_interrogative_upspeak: bool,
+        enable_katakana_english: bool,
+        output_directory: str,
+        save_wav: bool,
+        **kwargs
+    ):
         query_resp = requests.post(
             f"{engine_url}/audio_query",
             params={
@@ -271,6 +288,7 @@ class AudioGeneratorNode(Node):
         return wav_bytes, saved_path
 
     def _play_wav_bytes(self, wav_bytes: bytes):
+        # First try simpleaudio
         try:
             import simpleaudio as sa
             with io.BytesIO(wav_bytes) as bio:
@@ -281,27 +299,33 @@ class AudioGeneratorNode(Node):
                     rate = wf.getframerate()
             play_obj = sa.play_buffer(frames, channels, sample_width, rate)
             play_obj.wait_done()
-            self.get_logger().info("再生完了(simpleaudio)")
+            self.get_logger().info("Playback completed (simpleaudio)")
             return
         except Exception as e:
-            self.get_logger().warn(f"simpleaudio再生失敗: {e} -> フォールバック")
+            self.get_logger().warn(f"simpleaudio playback failed: {e} -> falling back")
 
+        # Fallback to external players
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
             tmp.write(wav_bytes)
             tmp.flush()
             path = tmp.name
             if shutil.which("ffplay"):
-                subprocess.run(["ffplay", "-nodisp", "-autoexit", path], check=False); return
+                subprocess.run(["ffplay", "-nodisp", "-autoexit", path], check=False)
+                return
             if shutil.which("paplay"):
-                subprocess.run(["paplay", path], check=False); return
+                subprocess.run(["paplay", path], check=False)
+                return
             if shutil.which("aplay"):
-                subprocess.run(["aplay", path], check=False); return
+                subprocess.run(["aplay", path], check=False)
+                return
             if platform.system() == "Darwin" and shutil.which("afplay"):
-                subprocess.run(["afplay", path], check=False); return
+                subprocess.run(["afplay", path], check=False)
+                return
             if platform.system() == "Windows":
                 ps = f"(New-Object Media.SoundPlayer '{path}').PlaySync()"
-                subprocess.run(["powershell", "-c", ps], check=False); return
-            self.get_logger().error("再生手段が見つかりません。")
+                subprocess.run(["powershell", "-c", ps], check=False)
+                return
+            self.get_logger().error("No playback method found.")
 
 def main(args=None):
     rclpy.init(args=args)
@@ -314,6 +338,7 @@ def main(args=None):
         node.get_logger().info("Shutting down.")
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

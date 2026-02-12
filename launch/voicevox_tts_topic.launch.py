@@ -1,3 +1,4 @@
+import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
@@ -18,7 +19,11 @@ def generate_launch_description():
                 'enable_interrogative_upspeak': True,
                 'enable_katakana_english': True,
                 'playback': True,
-                'output_directory': '~/ros2_ws/src/voicevox_tts_ros2'
+                'output_directory': os.path.expanduser('~/ros2_ws/src/voicevox_tts_ros2'),
+                'save_wav' : False,
+                'publish_audio_bytes' : False,
+                'stream_sentence_mode' : True,
+                'sentence_separators' : '。！？!?\\n',
             }]
         )
     ])
