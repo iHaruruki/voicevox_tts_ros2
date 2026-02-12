@@ -29,8 +29,8 @@ setup(
     entry_points={
         'console_scripts': [
             'tts_topic_node = voicevox_tts_ros2.tts_topic:main',
-            'tts_action_server = voicevox_tts_ros2.tts_action_server:main',
-            'tts_action_client = voicevox_tts_ros2.tts_action_client:main',
+            'tts_action_server_node = voicevox_tts_ros2.tts_action_server:main',
+            'tts_action_client_node = voicevox_tts_ros2.tts_action_client:main',
         ],
     },
 )
