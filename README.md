@@ -1,19 +1,19 @@
 # voicevox_tts_ros2
 
-ROS 2 (Humble 以降想定) で VOICEVOX エンジンを用いたテキスト音声合成 (TTS) を行うパッケージです。  
+ROS 2 で VOICEVOX エンジンを用いたテキスト音声合成 (TTS) を行うパッケージです.   
 以下 2 つの API スタイルを提供します:
 
 1. [Topic](#1-topicを使用した起動): 文字列トピック (`/voicevox_tts_text`) を購読して合成・保存・(任意で) 再生するノード  
 2. [Action](#2-actionを使用した起動): Action インターフェース (`/speak_text`) によるゴール駆動型の TTS 要求 (`SpeakTextActionServer` ノード)
 
 > [!TIP]
-> Action 版ではフィードバック (進捗 / 状態 / 抜粋) やキャッシュ利用有無、キャンセル処理などが可能です。
+> Action 版ではフィードバック (進捗 / 状態 / 抜粋) やキャッシュ利用有無,キャンセル処理などが可能です。
 
 ---
 
 > [!NOTE]
-> 本プログラムは [VOICEVOX](https://voicevox.hiroshiba.jp/) のエンジンを利用して音声合成を行います。  
-> 生成される音声（例: 四国めたん / ずんだもん 等）を利用・公開する際は、各キャラクターの利用規約・ガイドラインに従ってください。  
+> 本プログラムは [VOICEVOX](https://voicevox.hiroshiba.jp/) のエンジンを利用して音声合成を行います.  
+> 生成される音声（例: 四国めたん / ずんだもん 等）を利用・公開する際は、各キャラクターの利用規約・ガイドラインに従ってください.  
 > VOICEVOX 音声モデル 利用規約: [VOICEVOX ソフトウェア利用規約](https://voicevox.hiroshiba.jp/term/)  
 > デフォルト設定ではずんだもんを利用（VOICEVOX:ずんだもん）
 
@@ -41,7 +41,7 @@ ros2_ws/
 ```
 
 > [!IMPORTANT]
-> 別途パッケージ ([voicevox_tts_interface_ros2](https://github.com/iHaruruki/voicevox_tts_interface_ros2.git)) の clone が必要です。  
+> 別途パッケージ ([voicevox_tts_interface_ros2](https://github.com/iHaruruki/voicevox_tts_interface_ros2.git)) の clone が必要です.  
 > [Setup](#setup) を参照してください。
 
 ---
@@ -98,7 +98,7 @@ ros2_ws/
 
 ## How to Use
 
-起動方法が [Topic](#1-topicを使用した起動) を使用した方法と [Action](#2-actionを使用した起動) を使用した方法の 2 つあります。
+起動方法が [Topic](#1-topicを使用した起動) を使用した方法と [Action](#2-actionを使用した起動) を使用した方法の 2 つあります.
 
 ---
 
