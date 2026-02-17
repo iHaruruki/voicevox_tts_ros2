@@ -113,7 +113,7 @@ ros2_ws/
 2. **ノード起動**
 
    ```bash
-   ros2 launch voicevox_tts_ros2 audio_generator_launch.py
+   ros2 launch voicevox_tts_ros2 voicevox_tts_topic.launch.py
    ```
 
 3. **コマンドラインからテキスト送信**
